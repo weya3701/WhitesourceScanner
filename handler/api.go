@@ -1,14 +1,14 @@
 package handler
 
 import (
-	"artifact_repository/worker"
-	"artifact_repository/wss"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
+	"wss/worker"
+	"wss/wss"
 
 	"github.com/gin-gonic/gin"
 )

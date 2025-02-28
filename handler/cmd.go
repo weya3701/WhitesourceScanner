@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"artifact_repository/wss"
 	"encoding/json"
 	"fmt"
 	"os"
 	"time"
+	"wss/wss"
 
 	"github.com/signintech/pdft"
 	gopdf "github.com/signintech/pdft/minigopdf"

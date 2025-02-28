@@ -1,10 +1,10 @@
 package main
 
 import (
-	"artifact_repository/handler"
 	"flag"
 	"io"
 	"os"
+	"wss/handler"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
