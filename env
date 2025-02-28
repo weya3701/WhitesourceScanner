@@ -1,0 +1,15 @@
+settings_file=./conf.yaml
+whitesource_path=./whitesource/
+request_file=update-request.txt
+response_status_file=update-response.txt
+response_data_file=update-response-data.txt
+whitesource_api=https://saas.whitesourcesoftware.com/api/v1.4
+whitesource_agent=https://saas.whitesourcesoftware.com/agent
+risk_report_file=risk.pdf
+package_tmp=./tmp
+package_sync=./sync_tmp
+internet_index=<internet_index>
+tmp_index=<tmp_index>
+prod_index=<pypi_index>
+tmp_api=<tmp_api>
+prod_api=<prod_api>
