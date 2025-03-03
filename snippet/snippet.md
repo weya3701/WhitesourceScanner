@@ -15,15 +15,14 @@ import (
 
 func main() {
     mySlice := []string{"hello", "world", "go"}
-    joinedString := strings.Join(mySlice, ", ") // 使用 ", " 作為分隔符
+    joinedString := strings.Join(mySlice, ", ")
     fmt.Println(joinedString) // 輸出: hello, world, go
 
-    // 使用不同的分隔符
-    joinedString = strings.Join(mySlice, "")  // 無分隔符
-    fmt.Println(joinedString) // 輸出: helloworldgo
+    joinedString = strings.Join(mySlice, "")
+    fmt.Println(joinedString)
 
-    joinedString = strings.Join(mySlice, "***") // 使用 "***" 作為分隔符
-    fmt.Println(joinedString) // 輸出: hello***world***go
+    joinedString = strings.Join(mySlice, "***")
+    fmt.Println(joinedString)
 
 }
 ```
@@ -42,17 +41,15 @@ import (
 
 func main() {
     intSlice := []int{1, 2, 3, 4, 5}
-    stringInt := fmt.Sprintf("%v", intSlice) // %v 使用默認格式打印
-    fmt.Println(stringInt)  // 輸出: [1 2 3 4 5]
+    stringInt := fmt.Sprintf("%v", intSlice)
+    fmt.Println(stringInt)
 
-    //  更精細的控制格式
     stringInt = fmt.Sprintf("[%d, %d, %d, %d, %d]", intSlice[0], intSlice[1], intSlice[2], intSlice[3], intSlice[4])
-    fmt.Println(stringInt) // 輸出: [1, 2, 3, 4, 5]
+    fmt.Println(stringInt)
 
-    // 處理混合數據類型 slice
     mixedSlice := []interface{}{"hello", 123, 3.14}
     stringMixed := fmt.Sprintf("%v", mixedSlice)
-    fmt.Println(stringMixed) // 輸出: [hello 123 3.14]
+    fmt.Println(stringMixed)
 }
 ```
 
@@ -77,7 +74,7 @@ func main() {
         strSlice[i] = fmt.Sprintf("(%d)", num)
     }
     joinedString := strings.Join(strSlice, ", ")
-    fmt.Println(joinedString) // 輸出: (1), (2), (3), (4), (5)
+    fmt.Println(joinedString)
 }
 ```
 
