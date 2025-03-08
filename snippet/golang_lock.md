@@ -1,3 +1,6 @@
+## Golang 實作全域鎖
+
+* * *
 
 Go 沒有真正的全局鎖的概念，因為它鼓勵輕量級的併發和 goroutine 的使用。使用全局互斥鎖會導致嚴重的性能瓶頸，因為所有 goroutine 都需要爭奪同一個鎖。  然而，你可以模擬全局鎖的行為，但通常不建議這樣做。
 
@@ -134,5 +137,3 @@ func main() {
 
 
 記住，選擇哪種方法取決於你的具體需求。  仔細考慮你的程式碼的併發模型和性能需求，選擇最適合你的方法。  使用 `sync.WaitGroup` 確保所有 goroutine 完成是良好的實踐。  仔細測試你的程式碼，以確保它在高併發情況下也能正確工作。
-WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-E0000 00:00:1739257475.697419 114526637 init.cc:232] grpc_wait_for_shutdown_with_timeout() timed out.
