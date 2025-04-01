@@ -90,15 +90,6 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 			scanPath,
 		)
 	}
-	if withConf == "docker" {
-		cmd = exec.Command(
-			"java",
-			"-jar",
-			"./wss-unified-agent.jar",
-			"-c",
-			"./config/wss-unified-agent.config",
-		)
-	}
 	cmd.Run()
 
 	CreateDirectory("whitesource", w.ProjectName)
