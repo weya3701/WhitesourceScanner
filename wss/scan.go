@@ -70,26 +70,12 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	mutex.Lock()
 	defer mutex.Unlock()
 	scanPath := fmt.Sprintf("./tmp/%s", packagePath)
-	cmd := exec.Command(
-		"java",
-		"-jar",
-		"./wss-unified-agent.jar",
-		// "-c",
-		// "./config/wss-unified-agent.config",
-		"-d",
-		scanPath,
-	)
+
+	cmdArgs := []string{"java", "-jar", "./wss-unified-agent.jar", "-d", scanPath}
 	if withConf == "yes" {
-		cmd = exec.Command(
-			"java",
-			"-jar",
-			"./wss-unified-agent.jar",
-			"-c",
-			"./config/wss-unified-agent.config",
-			"-d",
-			scanPath,
-		)
+		cmdArgs = append(cmdArgs, "-c", "./config/wss-unified-agent.config")
 	}
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Run()
 
 	CreateDirectory("whitesource", w.ProjectName)
