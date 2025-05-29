@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"time"
 	"wss/wss"
 
@@ -24,6 +27,24 @@ func GetPackageReport(packageName string, projectName string, withConf string) {
 	_, err := json.Marshal(rsp)
 	if err != nil {
 		panic(err)
+	}
+}
+
+func GetInventoryReport(projectName string) {
+	source := fmt.Sprintf("report/%s/alert.json", projectName)
+	output := fmt.Sprintf("report/%s/inventory.csv", projectName)
+	shellCommand := fmt.Sprintf("./utils/inventory2csv.sh %s %s", source, output)
+	cmd := exec.Command("bash", "-c", shellCommand)
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+	err := cmd.Run()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			log.Printf("命令執行失敗，狀態碼: %d", exitErr.ExitCode())
+		} else {
+			log.Fatalf("命令執行時發生錯誤: %v", err)
+		}
 	}
 }
 

@@ -42,5 +42,6 @@ func main() {
 		handler.GetPackageReport(*packageName, *projectName, *withConf)
 		handler.GetProjectAlert(*projectName)
 		handler.UpdateRiskReport(*projectName)
+		handler.GetInventoryReport(*projectName)
 	}
 }

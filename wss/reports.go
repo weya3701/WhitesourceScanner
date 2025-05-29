@@ -20,18 +20,6 @@ func (p ProjectInfoRequest) GetJsonData() ([]byte, error) {
 	return jsonData, err
 }
 
-// func (pa *ProjectAlertRequest) InitRequest(uo UpdateRequestOriginal, ud UploadResponseData) {
-// 	projectName := ud.GetProjectName()
-// 	pa.RequestType = "getProjectAlerts"
-// 	pa.UserKey = uo.UserKey
-// 	pa.ProjectToken = ud.ProjectNamesToDetails[projectName].ProjectToken
-// }
-//
-// func (pa ProjectAlertRequest) GetJsonData() ([]byte, error) {
-// 	jsonData, err := json.Marshal(pa)
-// 	return jsonData, err
-// }
-
 func (pir *ProjectInventoryRequest) InitRequest(uo UpdateRequestOriginal, ud UploadResponseData) {
 	projectName := ud.GetProjectName()
 	pir.RequestType = "getProjectInventory"
