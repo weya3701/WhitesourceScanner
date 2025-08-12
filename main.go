@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"wss/handler"
+	"wss/wss"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -12,10 +13,21 @@ import (
 
 func main() {
 
+	// ExportFile  string
+	// Application string
+	// TarFile     string
+	// ImageName   string
+	// imageTag    string
+
 	mode := flag.String("mode", "", "App Mode")
 	packageName := flag.String("package_name", "", "Package Name")
 	projectName := flag.String("project_name", "", "Project Name")
 	withConf := flag.String("with_conf", "", "With Config")
+	exportFile := flag.String("export_file", "", "Export File")
+	application := flag.String("application", "", "Application")
+	tarFile := flag.String("tar_file", "", "Tar File")
+	imageName := flag.String("image_name", "", "Image Name")
+	imageTag := flag.String("image_tag", "", "Image Tag")
 	flag.Parse()
 
 	err := godotenv.Load(".env")
@@ -43,5 +55,17 @@ func main() {
 		handler.GetProjectAlert(*projectName)
 		handler.UpdateRiskReport(*projectName)
 		handler.GetInventoryReport(*projectName)
+	}
+	if *mode == "image" {
+		mendCli := handler.InitMendCli(
+			*exportFile,
+			*application,
+			*packageName,
+			*projectName,
+			*tarFile,
+			*imageName,
+			*imageTag,
+		)
+		wss.DoMendCliScan(mendCli)
 	}
 }

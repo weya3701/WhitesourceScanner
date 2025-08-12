@@ -63,8 +63,19 @@ func GetProjectAlert(projectName string) {
 	if err != nil {
 		panic(err)
 	}
+}
 
-	// fmt.Print(rsp)
+// FIXME.
+func InitMendCli(exportFile, application, packageName, projectName, tarFile, imageName, imageTag string) wss.MendCli {
+	var mendCli wss.MendCli
+	mendCli.Application = application
+	mendCli.ExportFile = exportFile
+	mendCli.ImageName = imageName
+	mendCli.ImageTag = imageTag
+	mendCli.PackageName = packageName
+	mendCli.ProjectName = projectName
+
+	return mendCli
 }
 
 func UpdateRiskReport(projectName string) {

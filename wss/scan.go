@@ -1,6 +1,7 @@
 package wss
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -62,6 +63,31 @@ func MoveRequestFile(source string, destination string) {
 func CreateDirectory(base string, dirname string) {
 	dir := fmt.Sprintf("%s/%s", base, dirname)
 	os.Mkdir(dir, 0755)
+}
+
+type MendCli struct {
+	ExportFile  string
+	Application string
+	PackageName string
+	ProjectName string
+	TarFile     string
+	ImageName   string
+	ImageTag    string
+}
+
+func DoMendCliScan(cli MendCli) {
+	// scanPath := fmt.Sprintf("./tmp/%s", packagePath)
+	scanScope := fmt.Sprintf("\"%s//%s\"", cli.Application, cli.ProjectName)
+	dockerTarFile := fmt.Sprintf("./tmp/%s/%s.tar", cli.ProjectName, cli.ProjectName)
+
+	cmdArgs := []string{"mend", "image", "--tar", dockerTarFile, "-s", scanScope}
+
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Run()
+	fmt.Println(stdout.String())
 }
 
 func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf string) {
