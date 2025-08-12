@@ -27,3 +27,7 @@
         ~ WhitesourceScanner --mode=cmd --project_name=<project_name> --package_name=<package_name>
 
 * 執行完成在./report/<掃描套件目錄名稱>中可以找到risk.pdf檔案
+
+* 執行Docker image tar檔案掃描
+
+        ~ WhitesourceScan --mode=image --project_name=<project_name> --package_name=<package_name> --tar_file=<tar_file_path>
