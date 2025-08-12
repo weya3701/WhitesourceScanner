@@ -9,6 +9,7 @@ dist/
 report/
 tmp/
 whitesource/
+snippet/
 config/wss-unified-agent.config
 # Compiled Java class files
 *.class
