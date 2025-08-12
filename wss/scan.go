@@ -75,10 +75,15 @@ type MendCli struct {
 	ImageTag    string
 }
 
-func DoMendCliScan(cli MendCli) {
-	// scanPath := fmt.Sprintf("./tmp/%s", packagePath)
+func DoDockerTarFileScan(cli MendCli) {
+	// func DoMendCliScan(cli MendCli) {
 	scanScope := fmt.Sprintf("\"%s//%s\"", cli.Application, cli.ProjectName)
-	dockerTarFile := fmt.Sprintf("./tmp/%s/%s.tar", cli.ProjectName, cli.ProjectName)
+	var dockerTarFile string
+	if cli.TarFile == "" {
+		dockerTarFile = fmt.Sprintf("./tmp/%s/%s.tar", cli.ProjectName, cli.ProjectName)
+	} else {
+		dockerTarFile = cli.TarFile
+	}
 
 	cmdArgs := []string{"mend", "image", "--tar", dockerTarFile, "-s", scanScope}
 

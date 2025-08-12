@@ -13,12 +13,6 @@ import (
 
 func main() {
 
-	// ExportFile  string
-	// Application string
-	// TarFile     string
-	// ImageName   string
-	// imageTag    string
-
 	mode := flag.String("mode", "", "App Mode")
 	packageName := flag.String("package_name", "", "Package Name")
 	projectName := flag.String("project_name", "", "Project Name")
@@ -66,6 +60,6 @@ func main() {
 			*imageName,
 			*imageTag,
 		)
-		wss.DoMendCliScan(mendCli)
+		wss.DoDockerTarFileScan(mendCli)
 	}
 }

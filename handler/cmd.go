@@ -72,6 +72,7 @@ func InitMendCli(exportFile, application, packageName, projectName, tarFile, ima
 	mendCli.ExportFile = exportFile
 	mendCli.ImageName = imageName
 	mendCli.ImageTag = imageTag
+	mendCli.TarFile = tarFile
 	mendCli.PackageName = packageName
 	mendCli.ProjectName = projectName
 
