@@ -104,6 +104,6 @@ func UpdateRiskReport(projectName string) {
 
 	ipdf.AddFont("arial", "./ttf/angsa.ttf")
 	ipdf.SetFont("arial", "", 20)
-	ipdf.Insert(timestamp, 1, 300, 10, 100, 100, gopdf.Center|gopdf.Bottom)
+	ipdf.Insert(timestamp, 1, 302, -5, 100, 100, gopdf.Center|gopdf.Bottom)
 	ipdf.Save(reportFile)
 }
