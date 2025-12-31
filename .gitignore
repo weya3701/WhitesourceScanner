@@ -19,6 +19,8 @@ conf.yaml
 demo.py
 # Log files
 *.log
+*.gradle
+*.txt
 
 # Package files
 *.jar
