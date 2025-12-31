@@ -24,6 +24,31 @@ func (py Pypi) Download(destination string, packageName string, indexUrl string)
 	return string(out)
 }
 
+// FIXME. Need to implement.
+// pip download from requirement file.
+func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
+
+	packageTmp := os.Getenv("package_tmp")
+	if packageTmp == "" {
+		return fmt.Errorf("package_tmp is empty")
+	}
+
+	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
+	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
+		return fmt.Errorf("Create Dir failed: %w", err)
+	}
+
+	cmdArgs := []string{"download", "-r", requirementsFile, "-d", downloadDestination}
+	fmt.Println(cmdArgs)
+	cmd := exec.Command("pip", cmdArgs...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("pip download failed: %w, output: %s", err, string(out))
+	}
+
+	return nil
+}
+
 func (py Pypi) Sync(targetUrl string, packageFile string) string {
 
 	apiUrl := targetUrl
