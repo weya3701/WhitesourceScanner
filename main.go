@@ -22,6 +22,8 @@ func main() {
 	tarFile := flag.String("tar_file", "", "Tar File")
 	imageName := flag.String("image_name", "", "Image Name")
 	imageTag := flag.String("image_tag", "", "Image Tag")
+	packageType := flag.String("package_type", "", "Package Type")
+	requirementsFile := flag.String("requirements_file", "", "Requirements File")
 	flag.Parse()
 
 	err := godotenv.Load(".env")
@@ -43,6 +45,13 @@ func main() {
 
 		server.Run(":8888")
 
+	}
+	if *mode == "reqfile" {
+		handler.SyncDefintionPackages(*packageType, *projectName, *requirementsFile)
+		handler.GetPackageReport(*packageName, *projectName, *withConf)
+		handler.GetProjectAlert(*projectName)
+		handler.UpdateRiskReport(*projectName)
+		handler.GetInventoryReport(*projectName)
 	}
 	if *mode == "cmd" {
 		handler.GetPackageReport(*packageName, *projectName, *withConf)

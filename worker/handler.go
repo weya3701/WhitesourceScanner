@@ -11,6 +11,7 @@ type Worker interface {
 	Download(destination string, packageName string, indexUrl string) string
 	Sync(targetUrl string, packageFile string) string
 	Remove(fullPath string) error
+	SyncPackages(destination string, requirementsFile string) error
 }
 
 type WorkerHandler struct {
@@ -38,6 +39,10 @@ func (rw WorkerHandler) Sync(targetUrl string, packageFile string) {
 		targetUrl,
 		packageFile,
 	)
+}
+
+func (rw WorkerHandler) SyncPackagesFromDefintionFile(projectName string, requirementsFile string) {
+	rw.worker.SyncPackages(projectName, requirementsFile)
 }
 
 func (rw WorkerHandler) Remove(fullPath string) error {
