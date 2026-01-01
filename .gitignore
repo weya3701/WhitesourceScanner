@@ -10,6 +10,7 @@ report/
 tmp/
 whitesource/
 snippet/
+pkgdefinition/
 config/wss-unified-agent.config
 # Compiled Java class files
 *.class
