@@ -24,7 +24,7 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}
-	outputDirectory := fmt.Sprintf("-DoutputDirectory=%s", downloadDestination)
+	outputDirectory := fmt.Sprintf("-Dmaven.repo.local=%s", downloadDestination)
 	cmdArgs := []string{"dependency:copy-dependencies", "-f", requirementsFile, outputDirectory}
 	fmt.Println(cmdArgs)
 	cmd := exec.Command("mvn", cmdArgs...)
