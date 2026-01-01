@@ -8,11 +8,36 @@ import (
 	"os"
 	"os/exec"
 	"time"
+	"wss/worker"
 	"wss/wss"
 
 	"github.com/signintech/pdft"
 	gopdf "github.com/signintech/pdft/minigopdf"
 )
+
+func initialPackageDefintion(packageType string) worker.Worker {
+
+	switch packageType {
+	case "python":
+
+		return worker.Pypi{}
+	case "maven":
+		return worker.Mvn{}
+	case "npm":
+		return worker.Npm{}
+	case "gradle":
+		return worker.Gradle{}
+	default:
+		return worker.Pypi{}
+	}
+
+}
+
+func SyncDefintionPackages(packageType string, projectName string, requirementsFile string) {
+	var wk worker.WorkerHandler = worker.NewRepositoryWorker(initialPackageDefintion(packageType))
+	wk.SyncPackagesFromDefintionFile(projectName, requirementsFile)
+
+}
 
 func GetPackageReport(packageName string, projectName string, withConf string) {
 	wss.DoWhitesourceScan(packageName, projectName, withConf)

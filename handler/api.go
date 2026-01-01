@@ -88,13 +88,33 @@ func InitPage(c *gin.Context, packageName, packageType, packageVersion string) {
 	}
 }
 
+// 新增Initial package info function.
+// 必要參數：
+// packageType: 套件類型(gradle, maven, npm, pip....)
+// definFile: 套件定義檔
+// 回傳worker介面實體
+func initialPackageDefinion(packageType string) worker.Worker {
+
+	switch packageType {
+	case "python":
+		return worker.Pypi{}
+	case "maven":
+		return worker.Mvn{}
+	case "npm":
+		return worker.Npm{}
+	case "gradle":
+		return worker.Gradle{}
+	default:
+		return worker.Pypi{}
+	}
+}
+
 func DownloadPackage(packageName, packageType, packageVersion, indexUrl, destination string) string {
 
 	var wk worker.WorkerHandler
 	packageName = fmt.Sprintf("%s==%s", packageName, packageVersion)
-	if packageType == "pypi" {
-		wk = worker.NewRepositoryWorker(worker.Pypi{})
-	}
+	pkgWorker := initialPackageDefinion(packageType)
+	wk = worker.NewRepositoryWorker(pkgWorker)
 	wk.DownloadFromIndex(destination, packageName, indexUrl)
 	return strings.Split(packageName, "==")[0]
 }
