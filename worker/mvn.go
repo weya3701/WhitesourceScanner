@@ -24,6 +24,29 @@ func (mvn Mvn) Download(destination string, packageName string, indexUrl string)
 	return string(out)
 }
 
+func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
+	packageTmp := os.Getenv("package_tmp")
+	if packageTmp == "" {
+		return fmt.Errorf("package_tmp is empty")
+
+	}
+
+	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
+	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
+		return fmt.Errorf("Create Dir failed: %w", err)
+	}
+	// mvn dependency:copy-dependencies -DoutputDirectory=your-specific-directory
+	dlprt := fmt.Sprintf("-DoutputDirectory=%s", downloadDestination)
+	cmdArgs := []string{"dependency:copy-dependencies", dlprt}
+	fmt.Println(cmdArgs)
+	cmd := exec.Command("mvn", cmdArgs...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("mvn download failed: %w, output: %s", err, string(out))
+	}
+	return nil
+}
+
 func (mvn Mvn) Sync(targetUrl string, packageFile string) string {
 
 	apiUrl := targetUrl
