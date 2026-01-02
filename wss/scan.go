@@ -2,10 +2,12 @@ package wss
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -106,8 +108,17 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	if withConf == "yes" {
 		cmdArgs = append(cmdArgs, "-c", "./config/wss-unified-agent.config")
 	}
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-	cmd.Run()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
+	// cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
+	// cmd.Run()
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	if err != nil {
+		fmt.Println("Scan failed.")
+	}
 
 	CreateDirectory("whitesource", w.ProjectName)
 	destinationFile := fmt.Sprintf("whitesource/%s/update-request.txt", w.ProjectName)
