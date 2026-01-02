@@ -43,7 +43,7 @@ func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 	defer cancel()
 	cmdArgs := []string{"download", "-r", requirementsFile, "-d", downloadDestination}
 	fmt.Println(cmdArgs)
-	cmd := exec.CommandContext(ctx, "pip", cmdArgs...)
+	cmd := exec.CommandContext(ctx, os.Getenv("pip"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("pip download failed: %w, output: %s", err, string(out))

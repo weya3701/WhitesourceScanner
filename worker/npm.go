@@ -40,7 +40,7 @@ func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 	defer cancel()
 	cmdArgs := []string{"install", "-prefix", downloadDestination}
 	fmt.Println(cmdArgs)
-	cmd := exec.CommandContext(ctx, "npm", cmdArgs...)
+	cmd := exec.CommandContext(ctx, os.Getenv("npm"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("pip download failed: %w, output: %s", err, string(out))

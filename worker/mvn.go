@@ -67,7 +67,7 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	fmt.Printf("Executing Maven: mvn %v\n", cmdArgs)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute) // 設定 10 分鐘超時
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "mvn", cmdArgs...)
+	cmd := exec.CommandContext(ctx, os.Getenv("mvn"), cmdArgs...)
 
 	// 5. 執行並捕捉輸出
 	// 使用 CombinedOutput 可以在錯誤時一次把 stdout/stderr 印出來
