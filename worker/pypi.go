@@ -2,14 +2,15 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 type Pypi struct{}
@@ -38,9 +39,11 @@ func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 	cmdArgs := []string{"download", "-r", requirementsFile, "-d", downloadDestination}
 	fmt.Println(cmdArgs)
-	cmd := exec.Command("pip", cmdArgs...)
+	cmd := exec.CommandContext(ctx, "pip", cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("pip download failed: %w, output: %s", err, string(out))
@@ -50,6 +53,8 @@ func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 }
 
 func (py Pypi) Sync(targetUrl string, packageFile string) string {
+
+	var body bytes.Buffer
 
 	apiUrl := targetUrl
 	file, err := os.Open(packageFile)
@@ -85,11 +90,13 @@ func (py Pypi) Sync(targetUrl string, packageFile string) string {
 	}
 	defer response.Body.Close()
 
-	body, err := ioutil.ReadAll(response.Body)
+	_, err = io.Copy(&body, response.Body)
+	// body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		panic(err)
 	}
-	return string(body)
+	bodyString := body.String()
+	return string(bodyString)
 
 }
 

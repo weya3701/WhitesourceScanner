@@ -1,9 +1,11 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 )
 
 type Npm struct{}
@@ -34,9 +36,11 @@ func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 	}
 
 	// npm install --prefix ./my-target-folder
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 	cmdArgs := []string{"install", "-prefix", downloadDestination}
 	fmt.Println(cmdArgs)
-	cmd := exec.Command("npm", cmdArgs...)
+	cmd := exec.CommandContext(ctx, "npm", cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("pip download failed: %w, output: %s", err, string(out))

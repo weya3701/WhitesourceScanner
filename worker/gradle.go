@@ -2,11 +2,14 @@ package worker
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Gradle struct{}
@@ -14,6 +17,47 @@ type Gradle struct{}
 type ReplaceRule struct {
 	Old string
 	New string
+}
+
+// FIXME. 移至檔案操作模組
+func copyFile(sourcePath, destinationDir string) error {
+	// 1. 檢查源檔案是否存在
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("無法開啟源檔案 '%s': %w", sourcePath, err)
+	}
+	defer sourceFile.Close()
+
+	// 2. 獲取源檔案的檔案資訊 (用於獲取檔案名稱)
+	fileInfo, err := sourceFile.Stat()
+	if err != nil {
+		return fmt.Errorf("無法獲取源檔案資訊 '%s': %w", sourcePath, err)
+	}
+	fileName := fileInfo.Name()
+
+	// 3. 創建目標檔案的路徑
+	destinationPath := filepath.Join(destinationDir, fileName)
+
+	// 4. 創建目標檔案
+	destinationFile, err := os.Create(destinationPath)
+	if err != nil {
+		return fmt.Errorf("無法創建目標檔案 '%s': %w", destinationPath, err)
+	}
+	defer destinationFile.Close()
+
+	// 5. 複製檔案內容
+	_, err = io.Copy(destinationFile, sourceFile)
+	if err != nil {
+		return fmt.Errorf("複製檔案內容錯誤: %w", err)
+	}
+
+	// 6. 複製檔案權限 (如果需要的話)
+	err = os.Chmod(destinationPath, fileInfo.Mode())
+	if err != nil {
+		fmt.Printf("警告: 無法設置目標檔案權限 '%s': %v\n", destinationPath, err)  // 不返回錯誤，繼續執行
+	}
+
+	return nil
 }
 
 func readFileContent(filePath string, rules []ReplaceRule) (string, error) {
@@ -89,9 +133,13 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 		return fmt.Errorf("Create Dir failed:%w", err)
 	}
 	// gradle -p /Users/ccxn/Desktop/demoGradle/ downloadDependencies
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
 	cmdArgs := []string{"-p", "./", "downloadDependencies"}
-	cmd := exec.Command("gradle", cmdArgs...)
+	cmd := exec.CommandContext(ctx, "gradle", cmdArgs...)
 	out, err := cmd.CombinedOutput()
+	fmt.Println("out: ", string(out))
 	if err != nil {
 		return fmt.Errorf("gradle download failed: %w, output %s", err, string(out))
 	}
