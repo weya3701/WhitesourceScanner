@@ -7,6 +7,7 @@ whitesource_api=https://saas.whitesourcesoftware.com/api/v1.4
 whitesource_agent=https://saas.whitesourcesoftware.com/agent
 risk_report_file=risk.pdf
 package_tmp=./tmp
+report_path=./report
 package_sync=./sync_tmp
 gradle=/opt/homebrew/bin/gradle
 npm=/opt/homebrew/bin/npm

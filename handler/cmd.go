@@ -46,8 +46,11 @@ func GetPackageReport(packageName string, projectName string, withConf string) {
 	ch := wss.GenerateProjectReportAsync(projectName)
 	_ = wss.GetProcessStatus(ch, projectName)
 
-	reportPath := fmt.Sprintf("report/%s", projectName)
-	os.Mkdir(reportPath, 0755)
+	report_path := os.Getenv("report_path")
+	reportPath := fmt.Sprintf("%s/%s", report_path, projectName)
+	if err := os.MkdirAll(reportPath, 0755); err != nil {
+		fmt.Println("Make dir failed.", err)
+	}
 	rsp := wss.GetProjectRiskReport(projectName)
 	_, err := json.Marshal(rsp)
 	if err != nil {
@@ -56,8 +59,9 @@ func GetPackageReport(packageName string, projectName string, withConf string) {
 }
 
 func GetInventoryReport(projectName string) {
-	source := fmt.Sprintf("report/%s/alert.json", projectName)
-	output := fmt.Sprintf("report/%s/inventory.csv", projectName)
+	report_path := os.Getenv("report_path")
+	source := fmt.Sprintf("%s/%s/alert.json", report_path, projectName)
+	output := fmt.Sprintf("%s/%s/inventory.csv", report_path, projectName)
 	shellCommand := fmt.Sprintf("./utils/inventory2csv.sh %s %s", source, output)
 	cmd := exec.Command("bash", "-c", shellCommand)
 	var stdoutBuf, stderrBuf bytes.Buffer
@@ -81,10 +85,19 @@ func GetProjectAlert(projectName string) {
 
 	_ = json.Unmarshal([]byte(rsp), &projectScanInfo)
 
-	reportPath := fmt.Sprintf("report/%s", projectName)
+	report_path := os.Getenv("report_path")
+	reportPath := fmt.Sprintf("%s/%s", report_path, projectName)
+	fmt.Println("reportPath: ", reportPath)
+	if err := os.Mkdir(reportPath, 0755); err != nil {
+		fmt.Println("Make dir failed.")
+	} else {
+		fmt.Println(reportPath)
+	}
+
 	reportFile := fmt.Sprintf(reportPath + "/alert.json")
-	os.Mkdir(reportPath, 0755)
+	// os.Mkdir(reportPath, 0755)
 	err := os.WriteFile(reportFile, []byte(rsp), 0644)
+	fmt.Println(err)
 	if err != nil {
 		panic(err)
 	}
@@ -116,11 +129,8 @@ func UpdateRiskReport(projectName string) {
 
 	timestamp := "lastUpload:" + projectScanInfo.ProjectVitals.LastUpdatedDate + " GenReport:" + time.Now().Format("2006-01-02 15:04:05")
 	fmt.Println("timestamp: ", timestamp)
-
-	reportFile := fmt.Sprintf(
-		"report/%s/risk.pdf",
-		projectName,
-	)
+	report_path := os.Getenv("report_path")
+	reportFile := fmt.Sprintf("%s/%s/risk.pdf", report_path, projectName)
 	fmt.Println("reportFile: ", reportFile)
 	err := ipdf.Open(reportFile)
 	if err != nil {
