@@ -110,6 +110,8 @@ func (gradle Gradle) Download(destination string, packageName string, indexUrl s
 
 // FIXME. 需新增./templates/build_tasks.gradled檔案
 func (gradle Gradle) SyncPackages(destination string, requirementsFile string) error {
+	// 取得./templates/build_tasks.gradle將downloadDependencies功能加入build.gradle
+	// 再進行gradle -p ./ downloadDependencies命令取得套件。
 
 	var err error = nil
 	packageTmp := os.Getenv("package_tmp")
@@ -132,7 +134,6 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed:%w", err)
 	}
-	// gradle -p /Users/ccxn/Desktop/demoGradle/ downloadDependencies
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
