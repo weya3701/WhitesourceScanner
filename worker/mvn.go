@@ -18,7 +18,9 @@ func (mvn Mvn) Download(destination string, packageName string, indexUrl string)
 
 func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	// 1. 驗證環境變數
+	var err error = nil
 	packageTmp := os.Getenv("package_tmp")
+	reportTmp := os.Getenv("report_tmp")
 	if packageTmp == "" {
 		return fmt.Errorf("environment variable 'package_tmp' is not set")
 	}
@@ -31,14 +33,21 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	// 3. 建構路徑 (使用 filepath.Join 確保跨平台相容性)
 	// downloadDestination: 這是你要存放乾淨 jar 檔的地方 (給掃描器用)
 	downloadDestination := filepath.Join(packageTmp, destination)
+	reportDestination := filepath.Join(reportTmp, destination)
 
 	// localRepo: 這是 Maven 的暫存倉庫 (結構複雜，含 pom/metadata)
 	// 建議與 downloadDestination 分開，避免掃描器掃到不該掃的 cache 檔
 	// localRepo := filepath.Join(packageTmp, destination+"_m2_repo")
 
 	// 建立目錄
-	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
+	if err = os.MkdirAll(downloadDestination, 0755); err != nil {
 		return fmt.Errorf("failed to create download dir: %w", err)
+	}
+
+	if err = os.MkdirAll(reportDestination, 0755); err != nil {
+		return fmt.Errorf("failed to create download dir: %w", err)
+	} else {
+		fmt.Printf("create report directory %s successful.", reportDestination)
 	}
 	// localRepo 可以讓 Maven 自己建，但為了保險也可以先建
 	// if err := os.MkdirAll(localRepo, 0755); err != nil {

@@ -115,8 +115,10 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 
 	var err error = nil
 	packageTmp := os.Getenv("package_tmp")
+	reportTmp := os.Getenv("report_tmp")
 	tplFile := "./templates/build_tasks.gradle"
 	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
+	reportDestination := fmt.Sprintf("%s/%s", reportTmp, destination)
 	replaceRules := []ReplaceRule{
 		{Old: "<destPath>", New: downloadDestination},
 	}
@@ -132,7 +134,12 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 		return err
 	}
 	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
-		return fmt.Errorf("Create Dir failed:%w", err)
+		return fmt.Errorf("Create pakcages directory failed:%w", err)
+	}
+	if err = os.MkdirAll(reportDestination, 0755); err != nil {
+		return fmt.Errorf("Create report directory failed: %w", err)
+	} else {
+		fmt.Printf("Create %s successful.", reportDestination)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)

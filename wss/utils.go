@@ -283,7 +283,8 @@ func GetProjectRiskReport(destination string) map[string]string {
 	defer resp.Body.Close()
 
 	dPath := fmt.Sprintf(
-		"report/%s/%s",
+		"%s/%s/%s",
+		os.Getenv("report_tmp"),
 		destination,
 		os.Getenv("risk_report_file"),
 	)

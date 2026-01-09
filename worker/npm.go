@@ -17,13 +17,20 @@ func (npm Npm) Download(destination string, packageName string, indexUrl string)
 
 func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 
+	var err error = nil
 	packageTmp := os.Getenv("package_tmp")
+	reportTmp := os.Getenv("report_tmp")
 	if packageTmp == "" {
 		return fmt.Errorf("package_tmp is empty")
 	}
 
 	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
-	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
+	reportDestination := fmt.Sprintf("%s/%s", reportTmp, destination)
+	if err = os.MkdirAll(downloadDestination, 0755); err != nil {
+		return fmt.Errorf("Create Dir failed: %w", err)
+	}
+
+	if err = os.MkdirAll(reportDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}
 	// copy package.json to downloadDestination filder
