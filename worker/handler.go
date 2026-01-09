@@ -2,7 +2,6 @@ package worker
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 )
@@ -57,7 +56,8 @@ func UploadToRepository(worker WorkerHandler, targetUrl string, sourcePath strin
 
 	var wg sync.WaitGroup
 
-	files, err := ioutil.ReadDir(sourcePath)
+	// files, err := ioutil.ReadDir(sourcePath)
+	files, err := os.ReadDir(sourcePath)
 	if err != nil {
 		fmt.Println("讀取目錄錯誤: ", err)
 		panic(err)
