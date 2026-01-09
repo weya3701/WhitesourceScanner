@@ -40,7 +40,7 @@ func GetPackage(c *gin.Context) {
 		packageType,
 		packageVersion,
 		os.Getenv("internet_index"),
-		"./tmp/",
+		os.Getenv("package_tmp"),
 	)
 
 	wss.DoWhitesourceScan(packageName, projectName, withConf)
@@ -49,18 +49,18 @@ func GetPackage(c *gin.Context) {
 	ch := wss.GenerateProjectReportAsync(projectName)
 	_ = wss.GetProcessStatus(ch, projectName)
 
-	reportPath := fmt.Sprintf("report/%s", projectName)
+	reportPath := fmt.Sprintf("%s/%s", os.Getenv("report_tmp"), projectName)
 	os.Mkdir(reportPath, 0755)
 	rsp := wss.GetProjectRiskReport(projectName)
 	_, err := json.Marshal(rsp)
 	if err != nil {
 		panic(err)
 	}
-	worker.UploadToRepository(wk, os.Getenv("tmp_api"), fmt.Sprintf("./tmp/%s", packageName))
+	worker.UploadToRepository(wk, os.Getenv("tmp_api"), fmt.Sprintf("%s/%s", os.Getenv("package_tmp"), packageName))
 	c.HTML(http.StatusOK, GetTemplate("package"), gin.H{
-		"report":      fmt.Sprintf("http://localhost:8888/report/%s/risk.pdf", strings.Split(packageName, "==")[0]),
+		"report":      os.Getenv("host_report"),
 		"projectName": projectName,
-		"sync_url":    "http://localhost:8888/sync",
+		"sync_url":    os.Getenv("host_sync"),
 	})
 }
 
