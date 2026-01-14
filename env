@@ -13,6 +13,7 @@ gradle=/opt/homebrew/bin/gradle
 npm=/opt/homebrew/bin/npm
 mvn=/opt/homebrew/bin/mvn
 pip=/Users/ccxn/venv/bin/pip
+wget=curl
 internet_index=<internet_index>
 tmp_index=<tmp_index>
 prod_index=<pypi_index>

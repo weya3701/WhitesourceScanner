@@ -27,6 +27,8 @@ func initialPackageDefintion(packageType string) worker.Worker {
 		return worker.Npm{}
 	case "gradle":
 		return worker.Gradle{}
+	case "wget":
+		return worker.UrlGet{}
 	default:
 		return worker.Pypi{}
 	}
