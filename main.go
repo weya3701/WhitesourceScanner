@@ -51,13 +51,13 @@ func main() {
 		handler.GetPackageReport(*packageName, *projectName, *withConf)
 		handler.GetProjectAlert(*projectName)
 		handler.UpdateRiskReport(*projectName)
-		handler.GetInventoryReport(*projectName)
+		handler.GetInventoryReport(*projectName, *packageType)
 	}
 	if *mode == "cmd" {
 		handler.GetPackageReport(*packageName, *projectName, *withConf)
 		handler.GetProjectAlert(*projectName)
 		handler.UpdateRiskReport(*projectName)
-		handler.GetInventoryReport(*projectName)
+		handler.GetInventoryReport(*projectName, *packageType)
 	}
 	if *mode == "image" {
 		mendCli := handler.InitMendCli(
