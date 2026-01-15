@@ -33,20 +33,16 @@ func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 	if err = os.MkdirAll(reportDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}
-	// copy package.json to downloadDestination filder
 	copyCmd := []string{requirementsFile, downloadDestination}
-	fmt.Println(copyCmd)
 	cpcmd := exec.Command("cp", copyCmd...)
 	cpout, err := cpcmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("Copy package.json failed: %w, output: %s", err, string(cpout))
 	}
 
-	// npm install --prefix ./my-target-folder
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	cmdArgs := []string{"install", "-prefix", downloadDestination}
-	fmt.Println(cmdArgs)
 	cmd := exec.CommandContext(ctx, os.Getenv("npm"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
