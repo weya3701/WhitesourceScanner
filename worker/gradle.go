@@ -147,7 +147,6 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 	cmdArgs := []string{"-p", "./", "downloadDependencies"}
 	cmd := exec.CommandContext(ctx, os.Getenv("gradle"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
-	fmt.Println("out: ", string(out))
 	if err != nil {
 		return fmt.Errorf("gradle download failed: %w, output %s", err, string(out))
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -93,11 +94,12 @@ func (ug UrlGet) SyncPackages(destination string, requirementsFile string) error
 			DownloadDestination: downloadDestination,
 		}
 		downloadTask.setFilename()
-		fmt.Println("set filename: ", downloadTask.Filename)
 		downloadTasks = append(downloadTasks, downloadTask)
 	}
 
-	ParallelDownload(downloadTasks, 3)
+	concurrencyStr := os.Getenv("concurrency")
+	concurrencyInt, _ := strconv.Atoi(concurrencyStr)
+	ParallelDownload(downloadTasks, concurrencyInt)
 
 	return err
 }
@@ -130,7 +132,6 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 	dest := fmt.Sprintf("%s/%s", task.DownloadDestination, task.Filename)
 	cmdArgs := []string{task.URL, "-o", dest}
 	cmd := exec.CommandContext(ctx, os.Getenv("wget"), cmdArgs...)
-	fmt.Println("cmd: ", cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		errChan <- fmt.Errorf("curl download failed: %w, output: %s", err, string(out))
@@ -140,15 +141,16 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 func ParallelDownload(tasks []DownloadTask, maxConcurrency int) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(tasks))
+	sem := make(chan int, maxConcurrency)
 	// sem := make(chan struct{}, maxConcurrency)
 
 	for _, task := range tasks {
 		wg.Add(1)
 
 		go func(task DownloadTask) {
-			// sem <- struct{}{}
+			sem <- 0
 			DownloadFile(task, &wg, errChan)
-			// <-sem
+			<-sem
 		}(task)
 	}
 
