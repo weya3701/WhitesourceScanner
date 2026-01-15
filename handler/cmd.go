@@ -57,10 +57,27 @@ func GetPackageReport(packageName string, projectName string, withConf string) {
 	}
 }
 
-func GetInventoryReport(projectName string) {
-	source := fmt.Sprintf("report/%s/alert.json", projectName)
-	output := fmt.Sprintf("report/%s/inventory.csv", projectName)
-	shellCommand := fmt.Sprintf("./utils/inventory2csv.sh %s %s", source, output)
+func GetInventoryReport(projectName, packageType string) {
+
+	var shellScript string = ""
+	switch packageType {
+	case "python":
+		shellScript = "inventory2csv.sh"
+	case "maven":
+		shellScript = "inventory2csv_pom.sh"
+	case "npm":
+		shellScript = "inventory2csv.sh"
+	case "gradle":
+		shellScript = "inventory2csv_pom.sh"
+	case "wget":
+		shellScript = "inventory2csv.sh"
+	default:
+		shellScript = "inventory2csv.sh"
+	}
+
+	source := fmt.Sprintf("%s/%s/alert.json", os.Getenv("report_tmp"), projectName)
+	output := fmt.Sprintf("%s/%s/inventory.csv", os.Getenv("report_tmp"), projectName)
+	shellCommand := fmt.Sprintf("./utils/%s %s %s", shellScript, source, output)
 	cmd := exec.Command("bash", "-c", shellCommand)
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
