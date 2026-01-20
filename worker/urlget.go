@@ -141,14 +141,14 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 func ParallelDownload(tasks []DownloadTask, maxConcurrency int) error {
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(tasks))
-	sem := make(chan int, maxConcurrency)
+	sem := make(chan struct{}, maxConcurrency)
 	// sem := make(chan struct{}, maxConcurrency)
 
 	for _, task := range tasks {
 		wg.Add(1)
 
 		go func(task DownloadTask) {
-			sem <- 0
+			sem <- struct{}{}
 			DownloadFile(task, &wg, errChan)
 			<-sem
 		}(task)

@@ -150,9 +150,37 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 	if err != nil {
 		return fmt.Errorf("gradle download failed: %w, output %s", err, string(out))
 	}
+	dependenciesTreeFile := fmt.Sprintf("%s/dependenciesTree.txt", reportDestination)
+	fmt.Println("dependencies tree file: ", dependenciesTreeFile)
+	cmds := []string{"dependencies"}
+	err = GetDependenciesTree(dependenciesTreeFile, os.Getenv("gradle"), cmds)
 
+	if err != nil {
+		return fmt.Errorf("Get dependencies tree failed: %w", err)
+	}
 	return nil
 }
+
+// func getDependenciesTree(filename string) error {
+// 	var err error = nil
+//
+// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+// 	defer cancel()
+// 	cmdArgs := []string{"dependencies"}
+// 	cmd := exec.CommandContext(ctx, os.Getenv("gradle"), cmdArgs...)
+// 	out, err := cmd.CombinedOutput()
+// 	if err != nil {
+// 		return fmt.Errorf("gradle dependencies failed: %w, output %s", err, string(out))
+// 	}
+// 	fmt.Println(string(out))
+//
+// 	err = os.WriteFile(filename, out, 0644) // 0644 是檔案權限，可根據需要調整
+// 	if err != nil {
+// 		return fmt.Errorf("failed to write output to file %s: %w", filename, err)
+// 	}
+//
+// 	return err
+// }
 
 func (gradle Gradle) Sync(targetUrl string, packageFile string) string {
 	var output string = "Need to implement"
