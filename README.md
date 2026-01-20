@@ -31,3 +31,7 @@
 * 執行Docker image tar檔案掃描
 
         ~ WhitesourceScan --mode=image --project_name=<project_name> --package_name=<package_name> --tar_file=<tar_file_path>
+
+* 執行套件定義檔下載套件並掃描
+
+        ~ WhitesoruceScan --mode=reqfile --project_name=<project_name> --package_name=<package_name> --package_type=<package_type: gradle> --requirements_file=<requrirement_file>

@@ -1,9 +1,12 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"sync"
+	"time"
 )
 
 type Worker interface {
@@ -71,4 +74,25 @@ func UploadToRepository(worker WorkerHandler, targetUrl string, sourcePath strin
 		}()
 	}
 	wg.Wait()
+}
+
+func GetDependenciesTree(filename string, prefix string, cmds []string) error {
+
+	var err error = nil
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, prefix, cmds...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("gradle dependencies failed: %w, output %s", err, string(out))
+	}
+	fmt.Println(string(out))
+
+	err = os.WriteFile(filename, out, 0644) // 0644 是檔案權限，可根據需要調整
+	if err != nil {
+		return fmt.Errorf("failed to write output to file %s: %w", filename, err)
+	}
+
+	return err
 }
