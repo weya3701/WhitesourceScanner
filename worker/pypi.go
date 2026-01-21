@@ -25,8 +25,14 @@ func (py Pypi) Download(destination string, packageName string, indexUrl string)
 	return string(out)
 }
 
-// FIXME. Need to implement.
-// pip download from requirement file.
+// SyncPackages 函數用於從 PyPI (Python Package Index) 下載指定的 Python 包並同步到指定的目的地。
+//
+// 參數:
+//   - destination: string -  下載包的目的地名稱，會被用來建立 download 和 report 目錄下的子目錄。
+//   - requirementsFile: string - requirements.txt 文件的路徑，其中列出了要下載的 Python 包。
+//
+// 返回值:
+//   - error: error - 如果發生錯誤，則返回錯誤信息；否則返回 nil。
 func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 
 	var err error = nil

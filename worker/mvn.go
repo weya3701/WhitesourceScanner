@@ -16,6 +16,24 @@ func (mvn Mvn) Download(destination string, packageName string, indexUrl string)
 	return string(out)
 }
 
+// SyncPackages 函數用於同步 Maven 依賴項到指定目的地。
+//
+// 它執行以下步驟：
+// 1. 獲取環境變數 `$package_tmp` 和 `$report_tmp`，用於儲存下載的包和報告。
+// 2. 檢查 `$package_tmp` 是否已設定。
+// 3. 檢查 `requirementsFile` 文件是否存在。
+// 4. 根據 `$package_tmp` 和 `destination` 建立下載目錄。
+// 5. 根據 `$report_tmp` 和 `destination` 建立報告目錄。
+// 6. 使用 Maven 命令 `dependency:copy-dependencies` 從 `requirementsFile` 下載依賴項到下載目錄。
+// 7. 使用 `dependency:tree` 命令生成依賴項樹並將其儲存到文件。
+//
+// 參數：
+//   - mvn: 指向 Mvn 結構體的指標 (未使用，可能為預留)。
+//   - destination: 字符串，用於指定下載和報告的相對路徑。  這個路徑會被加入到 `$package_tmp` 和 `$report_tmp` 環境變數指定的基礎路徑中，形成完整的下載和報告路徑。
+//   - requirementsFile: 字符串，指向包含 Maven 依賴項的文件。
+//
+// 返回值：
+//   - error: 如果發生錯誤，則返回錯誤；否則返回 nil。
 func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	var err error = nil
 	packageTmp := os.Getenv("package_tmp")

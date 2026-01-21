@@ -60,6 +60,15 @@ func copyFile(sourcePath, destinationDir string) error {
 	return nil
 }
 
+// readFileContent 函數從指定文件路徑讀取文件內容，並根據提供的替換規則進行文本替換。
+//
+// 參數：
+//   - filePath: 要讀取的文件路徑。
+//   - rules: 替換規則的切片。每個 ReplaceRule 包含要查找的舊字符串和要替換的新字符串。
+//
+// 返回值：
+//   - string: 處理後的文件的內容。如果發生錯誤，則返回空字符串。
+//   - error: 如果發生錯誤，則返回錯誤信息；否則返回 nil。
 func readFileContent(filePath string, rules []ReplaceRule) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -88,6 +97,14 @@ func readFileContent(filePath string, rules []ReplaceRule) (string, error) {
 	return content.String(), nil
 }
 
+// File 將內容追加到指定的文件中。
+//
+// 參數：
+//   - filePath: 要追加內容的文件路徑。
+//   - content: 要追加到文件的字符串內容。
+//
+// 傳回值：
+//   - error
 func appendToFile(filePath string, content string) error {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -109,6 +126,22 @@ func (gradle Gradle) Download(destination string, packageName string, indexUrl s
 }
 
 // FIXME. 需新增./templates/build_tasks.gradled檔案
+// SyncPackages 函數用於同步 Gradle 專案的套件依賴。
+// 該函數通過以下步驟實現：
+//  1. 從模板檔案 `./templates/build_tasks.gradle` 讀取內容，該檔案包含用於下載依賴項的 Gradle 任務。
+//  2. 替換模板中的特定佔位符，例如將 `<destPath>` 替換為下載目標路徑。
+//  3. 將修改後的 Gradle 任務內容追加到需求檔案 `requirementsFile` 中。
+//  4. 建立用於儲存下載套件的目錄。
+//  5. 執行 Gradle 命令，使用 `-p .` 指定專案根目錄，並執行 `downloadDependencies` 任務來下載依賴項。
+//  6. 建立用於儲存報告的目錄。
+//  7. 執行 Gradle 命令，獲取依賴樹。
+//
+// 參數:
+//   - destination:  套件的目標目錄，通常是專案名稱或版本。
+//   - requirementsFile:  用於存儲 Gradle 配置的檔案路徑，會將 downloadDependencies 任务 添加到该文件
+//
+// 返回:
+//   - error: 如果在任何步驟中發生錯誤，則返回錯誤訊息；否則返回 nil。
 func (gradle Gradle) SyncPackages(destination string, requirementsFile string) error {
 	// 取得./templates/build_tasks.gradle將downloadDependencies功能加入build.gradle
 	// 再進行gradle -p ./ downloadDependencies命令取得套件。
@@ -160,27 +193,6 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 	}
 	return nil
 }
-
-// func getDependenciesTree(filename string) error {
-// 	var err error = nil
-//
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-// 	defer cancel()
-// 	cmdArgs := []string{"dependencies"}
-// 	cmd := exec.CommandContext(ctx, os.Getenv("gradle"), cmdArgs...)
-// 	out, err := cmd.CombinedOutput()
-// 	if err != nil {
-// 		return fmt.Errorf("gradle dependencies failed: %w, output %s", err, string(out))
-// 	}
-// 	fmt.Println(string(out))
-//
-// 	err = os.WriteFile(filename, out, 0644) // 0644 是檔案權限，可根據需要調整
-// 	if err != nil {
-// 		return fmt.Errorf("failed to write output to file %s: %w", filename, err)
-// 	}
-//
-// 	return err
-// }
 
 func (gradle Gradle) Sync(targetUrl string, packageFile string) string {
 	var output string = "Need to implement"

@@ -76,6 +76,15 @@ func UploadToRepository(worker WorkerHandler, targetUrl string, sourcePath strin
 	wg.Wait()
 }
 
+// GetDependenciesTree 函數用於獲取 Gradle 依賴關係樹，並將其寫入指定的文件中。
+//
+// 參數：
+//   - filename:  要寫入依賴關係樹的文件的文件名。
+//   - prefix:    Gradle 命令的前綴，例如 "gradle" 或 "./gradlew"。
+//   - cmds:      Gradle 命令的參數，例如 ["dependencies", "--console=plain"]。
+//
+// 返回值：
+//   - error:  如果發生錯誤，則返回錯誤信息；否則返回 nil。
 func GetDependenciesTree(filename string, prefix string, cmds []string) error {
 
 	var err error = nil
