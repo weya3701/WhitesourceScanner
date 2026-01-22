@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -40,9 +41,9 @@ func GetScanSingleton() *sync.Mutex {
 	return scan_mutex
 }
 
-func (config *WhiteSourceEnv) ParserEnv(filepath string) {
+func (config *WhiteSourceEnv) ParserEnv(fpath string) {
 
-	data, err := os.ReadFile(filepath)
+	data, err := os.ReadFile(fpath)
 	if err != nil {
 		panic(err)
 	}
@@ -91,6 +92,85 @@ type MendCli struct {
 	TarFile     string
 	ImageName   string
 	ImageTag    string
+}
+
+// If file is exists.
+// 引件兩參數, filepath, filename，系統判斷目錄資料夾及檔案是否存在，若不存在則建立，若目錄已存在則開始執行指定命令，若有錯誤回傳錯誤
+func initialUnifiedAgent(fpath string, filename string) error {
+	var err error = nil
+
+	// 建立完整檔案路徑
+	agentfilePath := filepath.Join(fpath, filename)
+
+	// 檢查目錄是否存在
+	if _, err := os.Stat(fpath); os.IsNotExist(err) {
+		// 目錄不存在，建立目錄 (包含所有父目錄)
+		if err := os.MkdirAll(fpath, 0755); err != nil { // 0755: 讀寫執行權限，可根據需要調整
+			return fmt.Errorf("無法建立目錄 %s: %w", fpath, err)
+		}
+		fmt.Printf("目錄 %s 已建立\n", fpath)
+	} else if err != nil {
+		// 檢查目錄存在時，發生其他錯誤
+		return fmt.Errorf("檢查目錄 %s 時發生錯誤: %w", fpath, err)
+	} else {
+		// 目錄已存在
+		fmt.Printf("目錄 %s 已存在\n", fpath)
+
+		// 在這裡執行你的指定命令。  這裡用印出訊息代替。
+		// 例如:  執行一個檔案讀取、寫入、或任何其他操作。
+		fmt.Printf("執行指定命令... (檔案為 %s)\n", agentfilePath) //  代表指定命令，可以替換為其他命令
+	}
+
+	// 檢查檔案是否存在 (可選，根據需求加入)
+	fmt.Println("agent file: ", agentfilePath)
+	if _, err := os.Stat(agentfilePath); os.IsNotExist(err) {
+		// 檔案不存在，可以選擇在此建立檔案(如果需要)
+		// file, err := os.Create(filePath)
+		// if err != nil {
+		// 	return fmt.Errorf("無法建立檔案 %s: %w", filePath, err)
+		// }
+		// defer file.Close()
+		fmt.Printf("檔案 %s 不存在，您可以建立它\n", agentfilePath)
+		initAgentErr := getUnifiedAgent(
+			filename,
+			os.Getenv("wget"),
+			[]string{
+				os.Getenv("agentURL"),
+				"-o",
+				fmt.Sprintf("%s/%s", fpath, filename),
+			},
+		)
+		if initAgentErr != nil {
+			err = initAgentErr
+		}
+	} else if err != nil {
+		return fmt.Errorf("檢查檔案 %s 時發生錯誤: %w", agentfilePath, err)
+	} else {
+		fmt.Printf("檔案 %s 已存在\n", agentfilePath)
+	}
+	return err
+}
+
+func getUnifiedAgent(filename string, prefix string, cmds []string) error {
+
+	var err error = nil
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, prefix, cmds...)
+	fmt.Println("get unifed agent: ", cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("gradle dependencies failed: %w, output %s", err, string(out))
+	}
+	fmt.Println(string(out))
+
+	err = os.WriteFile(filename, out, 0644) // 0644 是檔案權限，可根據需要調整
+	if err != nil {
+		return fmt.Errorf("failed to write output to file %s: %w", filename, err)
+	}
+
+	return err
 }
 
 // DoDockerTarFileScan 函數使用 Mend CLI 掃描 Docker 壓縮包文件。
@@ -150,12 +230,17 @@ func DoDockerTarFileScan(cli MendCli) {
 //  12. 將更新請求檔案移動到目的地。
 func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf string) {
 
+	// initial unified agent
+	initialUnifiedAgent(os.Getenv("wssAgentPath"), os.Getenv("wssAgentName"))
+
 	mutex := GetScanSingleton()
 	mutex.Lock()
 	defer mutex.Unlock()
 	scanPath := fmt.Sprintf("./tmp/%s", packagePath)
 
-	cmdArgs := []string{"java", "-jar", "./wss-unified-agent.jar", "-d", scanPath}
+	ua := fmt.Sprintf("%s%s", os.Getenv("wssAgentPath"), os.Getenv("wssAgentName"))
+	cmdArgs := []string{"java", "-jar", ua, "-d", scanPath}
+	// cmdArgs := []string{"java", "-jar", "./wss-unified-agent.jar", "-d", scanPath}
 	if withConf == "yes" {
 		cmdArgs = append(cmdArgs, "-c", "./config/wss-unified-agent.config")
 	}
