@@ -236,7 +236,7 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	mutex := GetScanSingleton()
 	mutex.Lock()
 	defer mutex.Unlock()
-	scanPath := fmt.Sprintf("./tmp/%s", packagePath)
+	scanPath := fmt.Sprintf("%s/%s", os.Getenv("package_tmp"), packagePath)
 
 	ua := fmt.Sprintf("%s%s", os.Getenv("wssAgentPath"), os.Getenv("wssAgentName"))
 	cmdArgs := []string{"java", "-jar", ua, "-d", scanPath}
