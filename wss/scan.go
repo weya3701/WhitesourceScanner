@@ -96,7 +96,7 @@ type MendCli struct {
 
 // If file is exists.
 // 引件兩參數, filepath, filename，系統判斷目錄資料夾及檔案是否存在，若不存在則建立，若目錄已存在則開始執行指定命令，若有錯誤回傳錯誤
-func initialUnifiedAgent(fpath string, filename string) error {
+func initialUnifiedAgent(fpath, filename string) error {
 	var err error = nil
 
 	// 建立完整檔案路徑
