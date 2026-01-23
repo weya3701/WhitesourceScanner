@@ -60,6 +60,14 @@ func copyFile(sourcePath, destinationDir string) error {
 	return nil
 }
 
+func getBuildTemplate() string {
+	return `task downloadDependencies(type: Copy) {
+		from configurations.runtimeClasspath
+		into "%s"
+	}
+	`
+}
+
 // readFileContent 函數從指定文件路徑讀取文件內容，並根據提供的替換規則進行文本替換。
 //
 // 參數：
@@ -149,18 +157,19 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 	var err error = nil
 	packageTmp := os.Getenv("package_tmp")
 	reportTmp := os.Getenv("report_tmp")
-	tplFile := "./templates/build_tasks.gradle"
+	// tplFile := "./templates/build_tasks.gradle"
 	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
 	reportDestination := fmt.Sprintf("%s/%s", reportTmp, destination)
-	replaceRules := []ReplaceRule{
-		{Old: "<destPath>", New: downloadDestination},
-	}
+	// replaceRules := []ReplaceRule{
+	// 	{Old: "<destPath>", New: downloadDestination},
+	// }
 
-	tplContent, err := readFileContent(tplFile, replaceRules)
-	if err != nil {
-		fmt.Println("Error reading tplFile:", err)
-		return err
-	}
+	// tplContent, err := readFileContent(getBuildTemplate(), replaceRules)
+	tplContent := fmt.Sprintf(getBuildTemplate(), downloadDestination)
+	// if err != nil {
+	// 	fmt.Println("Error reading tplFile:", err)
+	// 	return err
+	// }
 	err = appendToFile(requirementsFile, tplContent)
 	if err != nil {
 		fmt.Println("Error appending to requirementsFile:", err)
