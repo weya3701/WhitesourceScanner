@@ -133,12 +133,25 @@ func UpdateRiskReport(projectName string) {
 	var projectScanInfo wss.ProjectScanInfo
 	_ = json.Unmarshal([]byte(rsp), &projectScanInfo)
 
-	timestamp := "lastUpload:" + projectScanInfo.ProjectVitals.LastUpdatedDate + " GenReport:" + time.Now().Format("2006-01-02 15:04:05")
-	fmt.Println("timestamp: ", timestamp)
+	// FIXME. 變更時間為utf+8 -- Start
+	layout := "2006-01-02 15:04:05"
+	secondsInHour := 60 * 60
+	loc := time.FixedZone("CST", 8*secondsInHour)
+
+	t, _ := time.ParseInLocation(layout, projectScanInfo.ProjectVitals.LastUpdatedDate, time.UTC)
+
+	tInUTC8 := t.In(loc)
+	timeStr := tInUTC8.Format(layout)
+
+	// FIXME. 變更時間為utf+8 -- End
+
+	timestamp := "lastUpload:" + timeStr + " GenReport:" + time.Now().Format("2006-01-02 15:04:05")
 
 	reportFile := fmt.Sprintf(
-		"report/%s/risk.pdf",
+		"%s/%s/%s",
+		os.Getenv("report_tmp"),
 		projectName,
+		os.Getenv("risk_report_file"),
 	)
 	fmt.Println("reportFile: ", reportFile)
 	err := ipdf.Open(reportFile)
@@ -150,4 +163,7 @@ func UpdateRiskReport(projectName string) {
 	ipdf.SetFont("arial", "", 20)
 	ipdf.Insert(timestamp, 1, 302, -5, 100, 100, gopdf.Center|gopdf.Bottom)
 	ipdf.Save(reportFile)
+
+	// Run getContentFromPDF.
+	// fmt.Println(ipdf)
 }
