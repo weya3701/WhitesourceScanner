@@ -243,6 +243,7 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	// cmdArgs := []string{"java", "-jar", "./wss-unified-agent.jar", "-d", scanPath}
 	if withConf == "yes" {
 		cmdArgs = append(cmdArgs, "-c", "./config/wss-unified-agent.config")
+		fmt.Println("command args: ", cmdArgs)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
