@@ -2,12 +2,9 @@ package main
 
 import (
 	"flag"
-	"io"
-	"os"
 	"wss/handler"
 	"wss/wss"
 
-	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
@@ -30,22 +27,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if *mode == "api" {
-		log_file, _ := os.Create("./logs/gin.log")
-		gin.DefaultWriter = io.MultiWriter(log_file)
-		server := gin.Default()
+	// if *mode == "api" {
+	// 	log_file, _ := os.Create("./logs/gin.log")
+	// 	gin.DefaultWriter = io.MultiWriter(log_file)
+	// 	server := gin.Default()
 
-		server.LoadHTMLGlob("template/html/*")
-		server.Static("/assets", "./template/assets")
-		server.Static("/report", "./report/")
-		server.GET("/package", handler.PackagePage)
-		server.GET("/sync", handler.SyncPage)
-		server.POST("/get_package", handler.GetPackage)
-		server.POST("/sync_package", handler.SyncPackage)
+	// 	server.LoadHTMLGlob("template/html/*")
+	// 	server.Static("/assets", "./template/assets")
+	// 	server.Static("/report", "./report/")
+	// 	server.GET("/package", handler.PackagePage)
+	// 	server.GET("/sync", handler.SyncPage)
+	// 	server.POST("/get_package", handler.GetPackage)
+	// 	server.POST("/sync_package", handler.SyncPackage)
 
-		server.Run(":8888")
+	// 	server.Run(":8888")
 
-	}
+	// }
 	if *mode == "reqfile" {
 		handler.SyncDefintionPackages(*packageType, *projectName, *requirementsFile)
 		handler.GetPackageReport(*packageName, *projectName, *withConf)
