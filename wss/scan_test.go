@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestGetScanSingleton 測試 GetScanSingleton 函數，驗證其單例模式的實現。
@@ -25,7 +26,7 @@ func TestGetScanSingleton(t *testing.T) {
 func TestWhiteSourceEnv_ParserEnv(t *testing.T) {
 	// 創建一個臨時 YAML 配置文件。
 	tempFile, err := ioutil.TempFile("", "test_config.yaml")
-	require().NoError(t, err, "創建臨時文件失敗")
+	require.NoError(t, err, "創建臨時文件失敗")
 	defer os.Remove(tempFile.Name()) // 測試完成後刪除臨時文件
 
 	// 寫入一些測試用的配置到臨時文件中。
@@ -39,9 +40,9 @@ wss.url: test_wss_url
 offline: "true"
 `
 	_, err = tempFile.WriteString(content)
-	require().NoError(t, err, "寫入臨時文件失敗")
+	require.NoError(t, err, "寫入臨時文件失敗")
 	err = tempFile.Close()
-	require().NoError(t, err, "關閉臨時文件失敗")
+	require.NoError(t, err, "關閉臨時文件失敗")
 
 	// 創建一個 WhiteSourceEnv 實例。
 	config := WhiteSourceEnv{}
@@ -74,7 +75,7 @@ func TestWhiteSourceEnv_ParserEnv_InvalidFile(t *testing.T) {
 func TestWhiteSourceEnv_ParserEnv_InvalidContent(t *testing.T) {
 	// 創建一個臨時 YAML 配置文件。
 	tempFile, err := ioutil.TempFile("", "test_config.yaml")
-	require().NoError(t, err, "創建臨時文件失敗")
+	require.NoError(t, err, "創建臨時文件失敗")
 	defer os.Remove(tempFile.Name()) // 測試完成後刪除臨時文件
 
 	// 寫入一些無效的 YAML 內容到臨時文件中。
@@ -85,9 +86,9 @@ invalid_field:
   - value2
 `
 	_, err = tempFile.WriteString(content)
-	require().NoError(t, err, "寫入臨時文件失敗")
+	require.NoError(t, err, "寫入臨時文件失敗")
 	err = tempFile.Close()
-	require().NoError(t, err, "關閉臨時文件失敗")
+	require.NoError(t, err, "關閉臨時文件失敗")
 
 	// 創建一個 WhiteSourceEnv 實例。
 	config := WhiteSourceEnv{}
@@ -167,15 +168,15 @@ func TestWhiteSourceEnv_SetEnv(t *testing.T) {
 func TestMoveRequestFile(t *testing.T) {
 	// 創建一個臨時文件。
 	tempFile, err := ioutil.TempFile("", "test_request.txt")
-	require().NoError(t, err, "創建臨時文件失敗")
+	require.NoError(t, err, "創建臨時文件失敗")
 	defer os.Remove(tempFile.Name()) // 測試完成後刪除臨時文件
 
 	// 寫入一些測試數據到臨時文件中。
 	content := "Test request content"
 	_, err = tempFile.WriteString(content)
-	require().NoError(t, err, "寫入臨時文件失敗")
+	require.NoError(t, err, "寫入臨時文件失敗")
 	err = tempFile.Close()
-	require().NoError(t, err, "關閉臨時文件失敗")
+	require.NoError(t, err, "關閉臨時文件失敗")
 
 	// 創建一個目標文件路徑。
 	destinationFile := filepath.Join(os.TempDir(), "moved_request.txt")
@@ -190,7 +191,7 @@ func TestMoveRequestFile(t *testing.T) {
 
 	// 驗證目標文件內容是否正確。
 	contentBytes, err := ioutil.ReadFile(destinationFile)
-	require().NoError(t, err, "讀取目標文件內容失敗")
+	require.NoError(t, err, "讀取目標文件內容失敗")
 	assert.Equal(t, content, string(contentBytes), "目標文件內容不正確")
 }
 
@@ -210,7 +211,7 @@ func TestMoveRequestFile_InvalidSource(t *testing.T) {
 func TestCreateDirectory(t *testing.T) {
 	// 創建一個臨時目錄作為基礎目錄。
 	tempDir, err := ioutil.TempDir("", "test_base")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(tempDir) // 測試完成後刪除臨時目錄
 
 	// 定義要創建的子目錄名稱。
@@ -239,13 +240,13 @@ func isDirectory(path string) bool {
 func TestDoDockerTarFileScan(t *testing.T) {
 	// 創建一個臨時目錄，用於存放測試用的 Docker 壓縮包文件。
 	tempDir, err := ioutil.TempDir("", "test_docker")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(tempDir) // 測試完成後刪除臨時目錄
 
 	// 創建一個測試用的 Docker 壓縮包文件。
 	tarFile := filepath.Join(tempDir, "test_image.tar")
 	err = ioutil.WriteFile(tarFile, []byte("Test docker image content"), 0644)
-	require().NoError(t, err, "創建臨時 Docker 壓縮包文件失敗")
+	require.NoError(t, err, "創建臨時 Docker 壓縮包文件失敗")
 
 	// 創建一個 MendCli 實例。
 	cli := MendCli{
@@ -266,7 +267,7 @@ func TestDoDockerTarFileScan(t *testing.T) {
 func TestInitialUnifiedAgent(t *testing.T) {
 	// 創建一個臨時目錄，用於存放 Unified Agent。
 	tempDir, err := ioutil.TempDir("", "test_ua")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(tempDir) // 測試完成後刪除臨時目錄
 
 	// 設置環境變量
@@ -277,7 +278,7 @@ func TestInitialUnifiedAgent(t *testing.T) {
 
 	// 調用 initialUnifiedAgent 函數初始化 Unified Agent。
 	err = initialUnifiedAgent(tempDir, "ua.jar")
-	require().NoError(t, err, "初始化 Unified Agent 失敗")
+	require.NoError(t, err, "初始化 Unified Agent 失敗")
 
 	// 驗證 Unified Agent 是否已成功下載到臨時目錄中。
 	uaPath := filepath.Join(tempDir, "ua.jar")
@@ -289,7 +290,7 @@ func TestInitialUnifiedAgent(t *testing.T) {
 func TestGetUnifiedAgent(t *testing.T) {
 	// 創建一個臨時文件，用於存放 Unified Agent。
 	tempFile, err := ioutil.TempFile("", "test_ua.jar")
-	require().NoError(t, err, "創建臨時文件失敗")
+	require.NoError(t, err, "創建臨時文件失敗")
 	defer os.Remove(tempFile.Name()) // 測試完成後刪除臨時文件
 
 	// 設置環境變量
@@ -297,7 +298,7 @@ func TestGetUnifiedAgent(t *testing.T) {
 
 	// 調用 getUnifiedAgent 函數下載 Unified Agent。
 	err = getUnifiedAgent(tempFile.Name(), "echo", []string{"https://example.com/ua.jar", "-o", tempFile.Name()})
-	require().NoError(t, err, "下載 Unified Agent 失敗")
+	require.NoError(t, err, "下載 Unified Agent 失敗")
 
 	// 驗證 Unified Agent 是否已成功下載到臨時文件中。
 	_, err = os.Stat(tempFile.Name())
@@ -308,12 +309,12 @@ func TestGetUnifiedAgent(t *testing.T) {
 func TestWhiteSourceEnv_DoScan(t *testing.T) {
 	// 創建一個臨時目錄，用於存放測試用的掃描文件。
 	tempDir, err := ioutil.TempDir("", "test_scan")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(tempDir) // 測試完成後刪除臨時目錄
 
 	// 創建一個臨時目錄，用於存放 Unified Agent。
 	uaDir, err := ioutil.TempDir("", "test_ua")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(uaDir) // 測試完成後刪除臨時目錄
 
 	// 創建一個 WhiteSourceEnv 實例。
@@ -342,7 +343,7 @@ func TestWhiteSourceEnv_DoScan(t *testing.T) {
 	// 創建一個掃描路徑。
 	scanPath := filepath.Join(tempDir, "test_scan_path")
 	err = os.MkdirAll(scanPath, 0755)
-	require().NoError(t, err, "創建掃描路徑失敗")
+	require.NoError(t, err, "創建掃描路徑失敗")
 
 	// 調用 DoScan 方法執行 WhiteSource 掃描。
 	projectName := "test_project_name"
@@ -355,17 +356,17 @@ func TestWhiteSourceEnv_DoScan(t *testing.T) {
 func TestWhiteSourceEnv_DoScan_WithConf(t *testing.T) {
 	// 創建一個臨時目錄，用於存放測試用的掃描文件。
 	tempDir, err := ioutil.TempDir("", "test_scan")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(tempDir) // 測試完成後刪除臨時目錄
 
 	// 創建一個臨時目錄，用於存放 Unified Agent。
 	uaDir, err := ioutil.TempDir("", "test_ua")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(uaDir) // 測試完成後刪除臨時目錄
 
 	// 創建一個臨時設定檔。
 	configFile, err := ioutil.TempFile("", "test_config.yaml")
-	require().NoError(t, err, "創建臨時設定檔失敗")
+	require.NoError(t, err, "創建臨時設定檔失敗")
 	defer os.Remove(configFile.Name()) // 測試完成後刪除臨時設定檔
 
 	// 寫入一些測試用的配置到臨時設定檔中。
@@ -379,9 +380,9 @@ wss.url: test_wss_url
 offline: "true"
 `
 	_, err = configFile.WriteString(content)
-	require().NoError(t, err, "寫入臨時設定檔失敗")
+	require.NoError(t, err, "寫入臨時設定檔失敗")
 	err = configFile.Close()
-	require().NoError(t, err, "關閉臨時設定檔失敗")
+	require.NoError(t, err, "關閉臨時設定檔失敗")
 
 	// 創建一個 WhiteSourceEnv 實例。
 	config := WhiteSourceEnv{
@@ -409,7 +410,7 @@ offline: "true"
 	// 創建一個掃描路徑。
 	scanPath := filepath.Join(tempDir, "test_scan_path")
 	err = os.MkdirAll(scanPath, 0755)
-	require().NoError(t, err, "創建掃描路徑失敗")
+	require.NoError(t, err, "創建掃描路徑失敗")
 
 	// 調用 DoScan 方法執行 WhiteSource 掃描，使用額外的設定檔。
 	projectName := "test_project_name"
@@ -422,12 +423,12 @@ offline: "true"
 func TestWhiteSourceEnv_DoScan_Error(t *testing.T) {
 	// 創建一個臨時目錄，用於存放測試用的掃描文件。
 	tempDir, err := ioutil.TempDir("", "test_scan")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(tempDir) // 測試完成後刪除臨時目錄
 
 	// 創建一個臨時目錄，用於存放 Unified Agent。
 	uaDir, err := ioutil.TempDir("", "test_ua")
-	require().NoError(t, err, "創建臨時目錄失敗")
+	require.NoError(t, err, "創建臨時目錄失敗")
 	defer os.RemoveAll(uaDir) // 測試完成後刪除臨時目錄
 
 	// 創建一個 WhiteSourceEnv 實例。
@@ -455,7 +456,7 @@ func TestWhiteSourceEnv_DoScan_Error(t *testing.T) {
 	// 創建一個掃描路徑。
 	scanPath := filepath.Join(tempDir, "test_scan_path")
 	err = os.MkdirAll(scanPath, 0755)
-	require().NoError(t, err, "創建掃描路徑失敗")
+	require.NoError(t, err, "創建掃描路徑失敗")
 
 	// 調用 DoScan 方法執行 WhiteSource 掃描。
 	projectName := "test_project_name"
