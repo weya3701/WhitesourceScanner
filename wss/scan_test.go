@@ -1,17 +1,12 @@
 package wss
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 // TestGetScanSingleton 測試 GetScanSingleton 函數，驗證其單例模式的實現。
