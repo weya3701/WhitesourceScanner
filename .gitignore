@@ -55,3 +55,4 @@ Thumbs.db
 *.mov
 *.wmv
 artifact_repository
+.aider*
