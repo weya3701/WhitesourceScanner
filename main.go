@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"wss/handler"
 	"wss/wss"
 
@@ -25,7 +26,7 @@ func main() {
 
 	err := godotenv.Load(".env")
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to load environ")
 	}
 	// if *mode == "api" {
 	// 	log_file, _ := os.Create("./logs/gin.log")

@@ -12,9 +12,12 @@ import (
 	"time"
 )
 
-type UrlGet struct{}
+type UrlGet struct {
+	Command string
+}
 
 type DownloadTask struct {
+	Command             string
 	URL                 string
 	Filename            string
 	DownloadDestination string
@@ -105,6 +108,7 @@ func (ug UrlGet) SyncPackages(destination string, requirementsFile string) error
 
 	for _, url := range urls {
 		downloadTask := DownloadTask{
+			Command:             os.Getenv("wget"),
 			URL:                 url,
 			DownloadDestination: downloadDestination,
 		}
@@ -151,7 +155,9 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 	defer cancel()
 	dest := fmt.Sprintf("%s/%s", task.DownloadDestination, task.Filename)
 	cmdArgs := []string{task.URL, "-o", dest}
-	cmd := exec.CommandContext(ctx, os.Getenv("wget"), cmdArgs...)
+	cmd := exec.CommandContext(ctx, task.Command, cmdArgs...)
+	fmt.Println(cmd)
+	// cmd := exec.CommandContext(ctx, os.Getenv("wget"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		errChan <- fmt.Errorf("curl download failed: %w, output: %s", err, string(out))

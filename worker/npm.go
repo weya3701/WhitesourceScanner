@@ -8,7 +8,9 @@ import (
 	"time"
 )
 
-type Npm struct{}
+type Npm struct {
+	Command string
+}
 
 func (npm Npm) Download(destination string, packageName string, indexUrl string) string {
 	var cmd string = ""
@@ -60,7 +62,8 @@ func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	cmdArgs := []string{"install", "-prefix", downloadDestination}
-	cmd := exec.CommandContext(ctx, os.Getenv("npm"), cmdArgs...)
+	cmd := exec.CommandContext(ctx, npm.Command, cmdArgs...)
+	// cmd := exec.CommandContext(ctx, os.Getenv("npm"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("pip download failed: %w, output: %s", err, string(out))

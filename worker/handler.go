@@ -63,7 +63,6 @@ func UploadToRepository(worker WorkerHandler, targetUrl string, sourcePath strin
 	files, err := os.ReadDir(sourcePath)
 	if err != nil {
 		fmt.Println("讀取目錄錯誤: ", err)
-		panic(err)
 	}
 	for _, file := range files {
 		wg.Add(1)

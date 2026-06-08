@@ -45,12 +45,12 @@ func (config *WhiteSourceEnv) ParserEnv(fpath string) {
 
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Read file failed: %s", err)
 	}
 
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Yaml unmarshal failed: %s", err)
 	}
 }
 
@@ -75,7 +75,7 @@ func (w WhiteSourceEnv) SetEnv() {
 func MoveRequestFile(source string, destination string) {
 	err := os.Rename(source, destination)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Rename filed: %s", err)
 	}
 }
 

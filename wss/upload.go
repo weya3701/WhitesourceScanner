@@ -13,15 +13,10 @@ import (
 
 func NewUpdateRequestFromFile(filepath string) UpdateRequestOriginal {
 	var updateRequestOrigin UpdateRequestOriginal
-	// file, err := os.Open(filepath)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer file.Close()
 	data, err := os.ReadFile(filepath)
 	err = json.Unmarshal(data, &updateRequestOrigin)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Json Unmarshal failed: %s", err)
 	}
 	return updateRequestOrigin
 }
@@ -29,7 +24,8 @@ func NewUpdateRequestFromFile(filepath string) UpdateRequestOriginal {
 func (u UpdateRequestOriginal) GetValues() url.Values {
 	diff_data, err := json.Marshal(u.Diff)
 	if err != nil {
-		panic(err)
+
+		fmt.Printf("Json Marshal failed: %s", err)
 	}
 	values := url.Values{}
 	values.Set("updateType", u.UpdateType)
@@ -49,11 +45,12 @@ func (u *UpdateRequestOriginal) LoadUpdateRequest(filepath string) {
 
 	data, err := os.ReadFile(filepath)
 	if err != nil {
-		panic(err)
+
+		fmt.Printf("Read file failed: %s", err)
 	}
 	err = json.Unmarshal(data, &u)
 	if err != nil {
-		panic(err)
+		fmt.Println("Json Unmarshal failed: %s", err)
 	}
 }
 
@@ -116,7 +113,7 @@ func (us UploadResponseStatus) GetJson() []byte {
 	data, err := json.Marshal(us)
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json marshal")
 	}
 
 	return data
@@ -126,7 +123,7 @@ func (ud UploadResponseData) GetJson() []byte {
 	data, err := json.Marshal(ud)
 
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json marshal")
 	}
 	return data
 }
@@ -150,7 +147,7 @@ func (us UploadResponseStatus) ToFile(destination string) bool {
 	}
 	err = writer.Flush()
 	if err != nil {
-		panic(err)
+		fmt.Println("Write flush failed")
 	}
 
 	return status
@@ -176,7 +173,7 @@ func (ud UploadResponseData) ToFile(destination string) bool {
 
 	err = writer.Flush()
 	if err != nil {
-		panic(err)
+		fmt.Println("Write flush failed")
 	}
 	return status
 }
@@ -187,13 +184,12 @@ func (ud *UploadResponseData) FromFile(fromfile string) bool {
 	bytes, err := os.ReadFile(fromfile)
 	if err != nil {
 		status = false
-		panic(err)
+		fmt.Println("Read file failed")
 	}
 	err = json.Unmarshal(bytes, &ud)
 	if err != nil {
 		status = false
-
-		panic(err)
+		fmt.Println("json unmarshal failed")
 	}
 
 	return status
@@ -206,13 +202,13 @@ func (us *UploadResponseStatus) FromFile(fromfile string) bool {
 	bytes, err := os.ReadFile(fromfile)
 	if err != nil {
 		status = false
-		panic(err)
+		fmt.Println("Read file failed")
 	}
 
 	err = json.Unmarshal(bytes, &us)
 	if err != nil {
 		status = false
-		panic(err)
+		fmt.Println("json unmarshal failed")
 	}
 
 	return status

@@ -22,15 +22,15 @@ func initialPackageDefintion(packageType string) worker.Worker {
 
 		return worker.Pypi{}
 	case "maven":
-		return worker.Mvn{}
+		return worker.Mvn{Command: os.Getenv("maven")}
 	case "npm":
-		return worker.Npm{}
+		return worker.Npm{Command: os.Getenv("npm")}
 	case "gradle":
-		return worker.Gradle{}
+		return worker.Gradle{Command: os.Getenv("gradle")}
 	case "wget":
-		return worker.UrlGet{}
+		return worker.UrlGet{Command: os.Getenv("wget")}
 	default:
-		return worker.Pypi{}
+		return worker.Pypi{Command: os.Getenv("pypi")}
 	}
 
 }

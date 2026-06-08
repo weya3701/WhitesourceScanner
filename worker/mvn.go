@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-type Mvn struct{}
+type Mvn struct {
+	Command string
+}
 
 func (mvn Mvn) Download(destination string, packageName string, indexUrl string) string {
 	var out string = ""
@@ -71,7 +73,7 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	fmt.Printf("Executing Maven: mvn %v\n", cmdArgs)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute) // 設定 10 分鐘超時
 	defer cancel()
-	cmd := exec.CommandContext(ctx, os.Getenv("mvn"), cmdArgs...)
+	cmd := exec.CommandContext(ctx, mvn.Command, cmdArgs...)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {

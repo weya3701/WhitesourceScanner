@@ -49,13 +49,12 @@ func DoUploadRequest(projectName string) {
 		os.Getenv("whitesource_agent"),
 	)
 	body, err := io.ReadAll(resp.Body)
-	print(string(body))
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to parse response body")
 	}
 	err = json.Unmarshal(body, &uploadResponseStatus)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to parse response body")
 	}
 	responseStatusFile := GetFilePath(
 		os.Getenv("whitesource_path"),
@@ -66,7 +65,7 @@ func DoUploadRequest(projectName string) {
 	datas := []byte(uploadResponseStatus.Data)
 	err = json.Unmarshal(datas, &uploadResponseData)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json unmarshal")
 	}
 	responseDataFile := GetFilePath(
 		os.Getenv("whitesource_path"),
@@ -101,7 +100,7 @@ func GenerateProjectReportAsync(projectName string) string {
 		&uploadResponseData,
 	)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json unmarshal")
 	}
 
 	asyncProcessStatusRequest.InitRequest(updateRequestOrigin, uploadResponseData)
@@ -126,7 +125,7 @@ func AskProcessStatus(jsonData []byte) []byte {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to send request")
 	}
 
 	defer resp.Body.Close()
@@ -162,7 +161,7 @@ func GetProcessStatus(uuid string, projectName string) string {
 		&uploadResponseData,
 	)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json unmarshal")
 	}
 	asyncProcessStatusRequest.InitRequest(updateRequestOrigin, uploadResponseData)
 	for {
@@ -228,7 +227,7 @@ func GetProjectRiskAlert(destination string) string {
 		&uploadResponseData,
 	)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json unmarshal")
 	}
 
 	projectAlertRequest.InitRequest(updateRequestOrigin, uploadResponseData)
@@ -261,7 +260,7 @@ func GetProjectRiskReport(destination string) map[string]string {
 		&uploadResponseData,
 	)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json unmarshal")
 	}
 
 	projectRiskRequest.InitRequest(updateRequestOrigin, uploadResponseData)
@@ -278,7 +277,7 @@ func GetProjectRiskReport(destination string) map[string]string {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to send request")
 	}
 	defer resp.Body.Close()
 
@@ -331,7 +330,7 @@ func GetInventoryReport() InventoryReport {
 		&uploadResponseData,
 	)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json unmarshal")
 	}
 
 	projectInventoryRequest.InitRequest(updateRequestOrigin, uploadResponseData)
@@ -348,14 +347,14 @@ func GetInventoryReport() InventoryReport {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to send request")
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 
 	err = json.Unmarshal(body, &inventoryReport)
 	if err != nil {
-		panic(err)
+		fmt.Println("Failed to json unmarshal")
 	}
 
 	return inventoryReport
