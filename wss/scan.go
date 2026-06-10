@@ -38,7 +38,7 @@ func (w *WhiteSourceEnv) SetProjectName(projectName *string) {
 }
 
 func (w *WhiteSourceEnv) SetProductName(productName *string) {
-	w.ProjectName = *productName
+	w.ProductName = *productName
 }
 
 func (w WhiteSourceEnv) SetEnv() {
