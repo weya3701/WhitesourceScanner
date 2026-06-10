@@ -15,6 +15,7 @@ import (
 	gopdf "github.com/signintech/pdft/minigopdf"
 )
 
+// initialPackageDefintion 根據 packageType 初始化並返回對應的 worker.Worker 實例。
 func initialPackageDefintion(packageType string) worker.Worker {
 
 	switch packageType {
@@ -35,30 +36,42 @@ func initialPackageDefintion(packageType string) worker.Worker {
 
 }
 
-func SyncDefintionPackages(packageType string, projectName string, requirementsFile string) {
+// SyncDefintionPackages 同步定義檔中的套件。
+// 它會根據 packageType 選擇合適的 worker 進行套件同步。
+func SyncDefinitionPackages(packageType string, projectName string, requirementsFile string) {
 	var wk worker.WorkerHandler = worker.NewRepositoryWorker(initialPackageDefintion(packageType))
 	wk.SyncPackagesFromDefintionFile(projectName, requirementsFile)
 
 }
 
-func GetPackageReport(packageName string, projectName string, withConf string) {
+// GetPackageReport 執行 WhiteSource 掃描，上傳請求，生成專案報告並獲取處理狀態，
+// 最後取得專案風險報告。
+func GetPackageReport(packageName string, projectName string, withConf string) (bool, error) {
+	var status bool = true
+	var err error = nil
+
 	wss.DoWhitesourceScan(packageName, projectName, withConf)
 	wss.DoUploadRequest(projectName)
 
-	ch := wss.GenerateProjectReportAsync(projectName)
+	_, ch := wss.GenerateProjectReportAsync(projectName)
 	_ = wss.GetProcessStatus(ch, projectName)
 
 	reportPath := fmt.Sprintf("report/%s", projectName)
 	os.Mkdir(reportPath, 0755)
 	rsp := wss.GetProjectRiskReport(projectName)
-	_, err := json.Marshal(rsp)
+	_, err = json.Marshal(rsp)
 	if err != nil {
-		panic(err)
+		log.Printf("Failed to json marshal %s", err)
+		status = false
+		return status, err
 	}
+	return status, err
 }
 
-func GetInventoryReport(projectName, packageType string) {
+func GetInventoryReport(projectName, packageType string) (bool, error) {
 
+	var status bool = true
+	var err error = nil
 	var shellScript string = ""
 	switch packageType {
 	case "python":
@@ -77,22 +90,35 @@ func GetInventoryReport(projectName, packageType string) {
 
 	source := fmt.Sprintf("%s/%s/alert.json", os.Getenv("report_tmp"), projectName)
 	output := fmt.Sprintf("%s/%s/inventory.csv", os.Getenv("report_tmp"), projectName)
+
+	// 檢查源文件是否存在
+	if _, err := os.Stat(source); os.IsNotExist(err) {
+		log.Printf("源文件不存在: %s", source)
+		return false, nil // 檔案不存在，不應視為致命錯誤，但操作失敗
+	}
+
 	shellCommand := fmt.Sprintf("./utils/%s %s %s", shellScript, source, output)
 	cmd := exec.Command("bash", "-c", shellCommand)
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			log.Printf("命令執行失敗，狀態碼: %d", exitErr.ExitCode())
+			log.Printf("命令執行失敗，狀態碼: %d, 輸出: %s, 錯誤: %s", exitErr.ExitCode(), stdoutBuf.String(), stderrBuf.String())
+			status = false
 		} else {
-			log.Fatalf("命令執行時發生錯誤: %v", err)
+			log.Fatalf("命令執行時發生錯誤: %v, 輸出: %s, 錯誤: %s", err, stdoutBuf.String(), stderrBuf.String())
+			status = false
 		}
 	}
+	return status, err
 }
 
-func GetProjectAlert(projectName string) {
+// GetProjectAlert 取得專案的風險警報，格式化並保存到 alert.json 檔案中。
+func GetProjectAlert(projectName string) (bool, error) {
+	var status bool = true
+	var err error = nil
 	rsp := wss.GetProjectRiskAlert(projectName)
 	rsp, _ = wss.GetPrettyString(rsp)
 
@@ -101,15 +127,18 @@ func GetProjectAlert(projectName string) {
 	_ = json.Unmarshal([]byte(rsp), &projectScanInfo)
 
 	reportPath := fmt.Sprintf("report/%s", projectName)
-	reportFile := fmt.Sprintf(reportPath + "/alert.json")
+	reportFile := fmt.Sprintf("%s", reportPath+"/alert.json")
 	os.Mkdir(reportPath, 0755)
-	err := os.WriteFile(reportFile, []byte(rsp), 0644)
+	err = os.WriteFile(reportFile, []byte(rsp), 0644)
 	if err != nil {
-		panic(err)
+		status = false
+		return status, err
 	}
+
+	return status, err
 }
 
-// FIXME.
+// InitMendCli 初始化並返回一個 MendCli 結構，設定各種掃描和報告相關的參數。
 func InitMendCli(exportFile, application, packageName, projectName, tarFile, imageName, imageTag string) wss.MendCli {
 	var mendCli wss.MendCli
 	mendCli.Application = application
@@ -123,7 +152,9 @@ func InitMendCli(exportFile, application, packageName, projectName, tarFile, ima
 	return mendCli
 }
 
-func UpdateRiskReport(projectName string) {
+// UpdateRiskReport 獲取專案風險警報，並更新指定的 PDF 報告檔案，
+// 主要更新報告中的時間戳為 UTC+8。
+func UpdateRiskReport(projectName string) error {
 
 	var ipdf pdft.PDFt
 
@@ -153,10 +184,9 @@ func UpdateRiskReport(projectName string) {
 		projectName,
 		os.Getenv("risk_report_file"),
 	)
-	fmt.Println("reportFile: ", reportFile)
 	err := ipdf.Open(reportFile)
 	if err != nil {
-		fmt.Println("PDF not found")
+		return fmt.Errorf("PDF not found %w", err)
 	}
 
 	ipdf.AddFont("arial", "./ttf/angsa.ttf")
@@ -164,6 +194,5 @@ func UpdateRiskReport(projectName string) {
 	ipdf.Insert(timestamp, 1, 302, -5, 100, 100, gopdf.Center|gopdf.Bottom)
 	ipdf.Save(reportFile)
 
-	// Run getContentFromPDF.
-	// fmt.Println(ipdf)
+	return nil
 }

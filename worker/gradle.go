@@ -1,14 +1,12 @@
 package worker
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -79,33 +77,33 @@ func getBuildTemplate() string {
 // 返回值：
 //   - string: 處理後的文件的內容。如果發生錯誤，則返回空字符串。
 //   - error: 如果發生錯誤，則返回錯誤信息；否則返回 nil。
-func readFileContent(filePath string, rules []ReplaceRule) (string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	reader := bufio.NewReader(file)
-	var content strings.Builder
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			return "", err
-		}
-		for _, rule := range rules {
-			line = strings.ReplaceAll(line, rule.Old, rule.New)
-		}
-
-		content.WriteString(line)
-	}
-	return content.String(), nil
-}
+// func readFileContent(filePath string, rules []ReplaceRule) (string, error) {
+// 	file, err := os.Open(filePath)
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	defer file.Close()
+//
+// 	reader := bufio.NewReader(file)
+// 	var content strings.Builder
+//
+// 	for {
+// 		line, err := reader.ReadString('\n')
+// 		if err == io.EOF {
+// 			break
+// 		}
+//
+// 		if err != nil {
+// 			return "", err
+// 		}
+// 		for _, rule := range rules {
+// 			line = strings.ReplaceAll(line, rule.Old, rule.New)
+// 		}
+//
+// 		content.WriteString(line)
+// 	}
+// 	return content.String(), nil
+// }
 
 // File 將內容追加到指定的文件中。
 //

@@ -34,9 +34,11 @@ func GetFilePath(path string, projectName string, fileName string) string {
 	)
 }
 
-func DoUploadRequest(projectName string) {
+func DoUploadRequest(projectName string) (string, error) {
 	var uploadResponseStatus UploadResponseStatus
 	var uploadResponseData UploadResponseData
+	var err error = nil
+	var msg string = ""
 
 	requestFile := GetFilePath(
 		os.Getenv("whitesource_path"),
@@ -50,11 +52,11 @@ func DoUploadRequest(projectName string) {
 	)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Failed to parse response body")
+		return "Failed to parse response body", err
 	}
 	err = json.Unmarshal(body, &uploadResponseStatus)
 	if err != nil {
-		fmt.Println("Failed to parse response body")
+		return "Failed to parse response body", err
 	}
 	responseStatusFile := GetFilePath(
 		os.Getenv("whitesource_path"),
@@ -65,7 +67,7 @@ func DoUploadRequest(projectName string) {
 	datas := []byte(uploadResponseStatus.Data)
 	err = json.Unmarshal(datas, &uploadResponseData)
 	if err != nil {
-		fmt.Println("Failed to json unmarshal")
+		return "Failed to json unmarshal", err
 	}
 	responseDataFile := GetFilePath(
 		os.Getenv("whitesource_path"),
@@ -74,9 +76,10 @@ func DoUploadRequest(projectName string) {
 	)
 	uploadResponseData.ToFile(responseDataFile)
 
+	return msg, err
 }
 
-func GenerateProjectReportAsync(projectName string) string {
+func GenerateProjectReportAsync(projectName string) (error, string) {
 	var updateRequestOrigin UpdateRequestOriginal
 	var uploadResponseStatus UploadResponseStatus
 	var uploadResponseData UploadResponseData
@@ -100,7 +103,7 @@ func GenerateProjectReportAsync(projectName string) string {
 		&uploadResponseData,
 	)
 	if err != nil {
-		fmt.Println("Failed to json unmarshal")
+		return fmt.Errorf("Failed to json unmarshal"), "''"
 	}
 
 	asyncProcessStatusRequest.InitRequest(updateRequestOrigin, uploadResponseData)
@@ -108,12 +111,14 @@ func GenerateProjectReportAsync(projectName string) string {
 
 	jsonData, _ := asyncProcessStatusRequest.GetJsonData()
 
-	body := AskProcessStatus(jsonData)
+	_, body := AskProcessStatus(jsonData)
 	err = json.Unmarshal(body, &processStatusResponse)
-	return processStatusResponse.AsyncProcessStatus.Uuid
+	return nil, processStatusResponse.AsyncProcessStatus.Uuid
 }
 
-func AskProcessStatus(jsonData []byte) []byte {
+func AskProcessStatus(jsonData []byte) (error, []byte) {
+
+	var rsp []byte = nil
 	req, _ := http.NewRequest(
 		"POST",
 		os.Getenv("whitesource_api"),
@@ -125,12 +130,12 @@ func AskProcessStatus(jsonData []byte) []byte {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Failed to send request")
+		return fmt.Errorf("Failed to send request"), rsp
 	}
 
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-	return body
+	return err, body
 }
 
 func GetProcessStatus(uuid string, projectName string) string {
@@ -181,7 +186,7 @@ func GetProcessStatus(uuid string, projectName string) string {
 			asyncProcessStatusRequest.OrgToken = os.Getenv("WS_APIKEY")
 
 			jsonData, _ := asyncProcessStatusRequest.GetJsonData()
-			body := AskProcessStatus(jsonData)
+			_, body := AskProcessStatus(jsonData)
 			json.Unmarshal(body, &asyncProcessResponse)
 			if asyncProcessResponse.AsyncProcessStatus.Status == "SUCCESS" {
 				status = "ok"
@@ -232,7 +237,7 @@ func GetProjectRiskAlert(destination string) string {
 
 	projectAlertRequest.InitRequest(updateRequestOrigin, uploadResponseData)
 	jsonData, _ := projectAlertRequest.GetJsonData()
-	body := AskProcessStatus(jsonData)
+	_, body := AskProcessStatus(jsonData)
 
 	return string(body)
 }
