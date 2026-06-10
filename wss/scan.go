@@ -13,16 +13,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var once sync.Once
-var scan_mutex *sync.Mutex
+var scanMutexMap sync.Map
 
-func GetScanSingleton() *sync.Mutex {
-	once.Do(
-		func() {
-			scan_mutex = &sync.Mutex{}
-		},
-	)
-	return scan_mutex
+func GetScanSingleton(taskId string) *sync.Mutex {
+	mutex, _ := scanMutexMap.LoadOrStore(taskId, &sync.Mutex{})
+	return mutex.(*sync.Mutex)
 }
 
 func (config *WhiteSourceEnv) ParserEnv(fpath string) {
@@ -168,7 +163,7 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	// initial unified agent
 	initialUnifiedAgent(os.Getenv("wssAgentPath"), os.Getenv("wssAgentName"))
 
-	mutex := GetScanSingleton()
+	mutex := GetScanSingleton(*projectName)
 	mutex.Lock()
 	defer mutex.Unlock()
 	scanPath := fmt.Sprintf("%s/%s", os.Getenv("package_tmp"), packagePath)
