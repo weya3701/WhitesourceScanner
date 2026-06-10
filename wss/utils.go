@@ -144,10 +144,10 @@ func GetProcessStatus(uuid string, projectName string) string {
 	var uploadResponseData UploadResponseData
 	var asyncProcessStatusRequest AsyncProcessStatusRequest
 	var asyncProcessResponse ProcessStatusResponse
-	var status string = "no"
+	// var status string = "no"
 
-	ch := make(chan string)
-	stop := make(chan string)
+	// ch := make(chan string)
+	// stop := make(chan string)
 
 	requestFile := GetFilePath(
 		os.Getenv("whitesource_path"),
@@ -169,34 +169,47 @@ func GetProcessStatus(uuid string, projectName string) string {
 		fmt.Println("Failed to json unmarshal")
 	}
 	asyncProcessStatusRequest.InitRequest(updateRequestOrigin, uploadResponseData)
+	// 取消 stop channel，簡化流程
 	for {
-		if status == "no" {
-			go func(uuid string) {
-				ch <- uuid
-			}(uuid)
-		} else {
-			go func() {
-				stop <- status
-			}()
-		}
+		asyncProcessStatusRequest.Uuid = uuid
+		asyncProcessStatusRequest.OrgToken = os.Getenv("WS_APIKEY")
+		jsonData, _ := asyncProcessStatusRequest.GetJsonData()
+		_, body := AskProcessStatus(jsonData)
+		json.Unmarshal(body, &asyncProcessResponse)
 
-		select {
-		case uuid := <-ch:
-			asyncProcessStatusRequest.Uuid = uuid
-			asyncProcessStatusRequest.OrgToken = os.Getenv("WS_APIKEY")
-
-			jsonData, _ := asyncProcessStatusRequest.GetJsonData()
-			_, body := AskProcessStatus(jsonData)
-			json.Unmarshal(body, &asyncProcessResponse)
-			if asyncProcessResponse.AsyncProcessStatus.Status == "SUCCESS" {
-				status = "ok"
-			} else {
-				time.Sleep(5 * time.Second)
-			}
-		case <-stop:
-			return asyncProcessResponse.AsyncProcessStatus.Status
+		if asyncProcessResponse.AsyncProcessStatus.Status == "SUCCESS" {
+			return "SUCCESS" // 直接返回，優雅退出
 		}
+		time.Sleep(5 * time.Second)
 	}
+	// for {
+	// 	if status == "no" {
+	// 		go func(uuid string) {
+	// 			ch <- uuid
+	// 		}(uuid)
+	// 	} else {
+	// 		go func() {
+	// 			stop <- status
+	// 		}()
+	// 	}
+
+	// 	select {
+	// 	case uuid := <-ch:
+	// 		asyncProcessStatusRequest.Uuid = uuid
+	// 		asyncProcessStatusRequest.OrgToken = os.Getenv("WS_APIKEY")
+
+	// 		jsonData, _ := asyncProcessStatusRequest.GetJsonData()
+	// 		_, body := AskProcessStatus(jsonData)
+	// 		json.Unmarshal(body, &asyncProcessResponse)
+	// 		if asyncProcessResponse.AsyncProcessStatus.Status == "SUCCESS" {
+	// 			status = "ok"
+	// 		} else {
+	// 			time.Sleep(5 * time.Second)
+	// 		}
+	// 	case <-stop:
+	// 		return asyncProcessResponse.AsyncProcessStatus.Status
+	// 	}
+	// }
 }
 
 func GetPrettyString(str string) (string, error) {
