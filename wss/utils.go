@@ -16,9 +16,11 @@ func GetJsonContentType() (string, string) {
 
 func DoWhitesourceScan(packagePath string, productName string, withConf string) {
 	var wssEnv WhiteSourceEnv
+	projectName := &productName
 
 	wssEnv.ParserEnv(os.Getenv("settings_file"))
 	wssEnv.SetProductName(&productName)
+	wssEnv.SetProjectName(projectName)
 
 	wssEnv.SetEnv()
 	wssEnv.DoScan(packagePath, &productName, withConf)
