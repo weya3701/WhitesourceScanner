@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,7 +17,7 @@ func NewUpdateRequestFromFile(filepath string) UpdateRequestOriginal {
 	data, err := os.ReadFile(filepath)
 	err = json.Unmarshal(data, &updateRequestOrigin)
 	if err != nil {
-		fmt.Printf("Json Unmarshal failed: %s", err)
+		log.Printf("Json Unmarshal failed: %s", err)
 	}
 	return updateRequestOrigin
 }
@@ -46,32 +47,34 @@ func (u *UpdateRequestOriginal) LoadUpdateRequest(filepath string) {
 	data, err := os.ReadFile(filepath)
 	if err != nil {
 
-		fmt.Printf("Read file failed: %s", err)
+		log.Printf("Read file failed: %s", err)
+		return
 	}
 	err = json.Unmarshal(data, &u)
 	if err != nil {
-		fmt.Println("Json Unmarshal failed: %s", err)
+		log.Printf("Json Unmarshal failed: %s", err)
+		return
 	}
 }
 
-func (u UpdateRequestOriginal) parseToJson() string {
-	var ur UpdateRequestReq
-	ur.UpdateType = u.UpdateType
-	ur.Type = u.Type
-	ur.Agent = u.Agent
-	ur.AgentVersion = u.AgentVersion
-	ur.Token = u.Token
-	ur.UserKey = u.UserKey
-	ur.Product = u.Product
-	ur.TimeStamp = u.TimeStamp
-	ur.Diff = u.Diff
-	var jsonData []byte
-	jsonData, err := json.Marshal(ur)
-	if err != nil {
-		fmt.Println("Error marshalling to JSON: ", err)
-	}
-	return string(jsonData)
-}
+// func (u UpdateRequestOriginal) parseToJson() string {
+// 	var ur UpdateRequestReq
+// 	ur.UpdateType = u.UpdateType
+// 	ur.Type = u.Type
+// 	ur.Agent = u.Agent
+// 	ur.AgentVersion = u.AgentVersion
+// 	ur.Token = u.Token
+// 	ur.UserKey = u.UserKey
+// 	ur.Product = u.Product
+// 	ur.TimeStamp = u.TimeStamp
+// 	ur.Diff = u.Diff
+// 	var jsonData []byte
+// 	jsonData, err := json.Marshal(ur)
+// 	if err != nil {
+// 		fmt.Println("Error marshalling to JSON: ", err)
+// 	}
+// 	return string(jsonData)
+// }
 
 func (u UpdateRequestOriginal) SendUploadRequest(wssurl string) (resp *http.Response, err error) {
 
@@ -110,20 +113,21 @@ func (ud UploadResponseData) GetProjectName() string {
 }
 
 func (us UploadResponseStatus) GetJson() []byte {
+	var data []byte
 	data, err := json.Marshal(us)
 
 	if err != nil {
-		fmt.Println("Failed to json marshal")
+		log.Println("Failed to json marshal")
 	}
-
 	return data
 }
 
 func (ud UploadResponseData) GetJson() []byte {
+	var data []byte
 	data, err := json.Marshal(ud)
 
 	if err != nil {
-		fmt.Println("Failed to json marshal")
+		log.Println("Failed to json marshal")
 	}
 	return data
 }
@@ -147,7 +151,8 @@ func (us UploadResponseStatus) ToFile(destination string) bool {
 	}
 	err = writer.Flush()
 	if err != nil {
-		fmt.Println("Write flush failed")
+		log.Println("Write flush failed")
+		status = false
 	}
 
 	return status
@@ -173,7 +178,8 @@ func (ud UploadResponseData) ToFile(destination string) bool {
 
 	err = writer.Flush()
 	if err != nil {
-		fmt.Println("Write flush failed")
+		log.Println("Write flush failed")
+		status = false
 	}
 	return status
 }
@@ -189,7 +195,7 @@ func (ud *UploadResponseData) FromFile(fromfile string) bool {
 	err = json.Unmarshal(bytes, &ud)
 	if err != nil {
 		status = false
-		fmt.Println("json unmarshal failed")
+		log.Println("json unmarshal failed")
 	}
 
 	return status
@@ -208,7 +214,7 @@ func (us *UploadResponseStatus) FromFile(fromfile string) bool {
 	err = json.Unmarshal(bytes, &us)
 	if err != nil {
 		status = false
-		fmt.Println("json unmarshal failed")
+		log.Println("json unmarshal failed")
 	}
 
 	return status

@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,7 +59,7 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	if err = os.MkdirAll(reportDestination, 0755); err != nil {
 		return fmt.Errorf("failed to create download dir: %w", err)
 	} else {
-		fmt.Printf("create report directory %s successful.", reportDestination)
+		fmt.Errorf("create report directory %s successful.", reportDestination)
 	}
 
 	cmdArgs := []string{
@@ -70,7 +71,7 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 		"-U",
 	}
 
-	fmt.Printf("Executing Maven: mvn %v\n", cmdArgs)
+	log.Printf("Executing Maven: mvn %v\n", cmdArgs)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute) // 設定 10 分鐘超時
 	defer cancel()
 	cmd := exec.CommandContext(ctx, mvn.Command, cmdArgs...)

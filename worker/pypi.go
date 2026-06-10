@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -22,19 +23,11 @@ func (py Pypi) Download(destination string, packageName string, indexUrl string)
 	cmd = fmt.Sprintf("pip download %s --dest %s/%s/ %s", indexUrl, destination, packageName, packageName)
 	out, err := exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		fmt.Println("Failed execute command")
+		log.Println("Failed execute command")
 	}
 	return string(out)
 }
 
-// SyncPackages 函數用於從 PyPI (Python Package Index) 下載指定的 Python 包並同步到指定的目的地。
-//
-// 參數:
-//   - destination: string -  下載包的目的地名稱，會被用來建立 download 和 report 目錄下的子目錄。
-//   - requirementsFile: string - requirements.txt 文件的路徑，其中列出了要下載的 Python 包。
-//
-// 返回值:
-//   - error: error - 如果發生錯誤，則返回錯誤信息；否則返回 nil。
 func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 
 	var err error = nil
@@ -69,11 +62,13 @@ func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 func (py Pypi) Sync(targetUrl string, packageFile string) string {
 
 	var body bytes.Buffer
+	var err error = nil
+	var bodyString string = ""
 
 	apiUrl := targetUrl
 	file, err := os.Open(packageFile)
 	if err != nil {
-		fmt.Println("Failed to open file")
+		log.Println("Failed to open file")
 	}
 	defer file.Close()
 
@@ -81,36 +76,35 @@ func (py Pypi) Sync(targetUrl string, packageFile string) string {
 	writer := multipart.NewWriter(requestBody)
 	part, err := writer.CreateFormFile("file", filepath.Base(packageFile))
 	if err != nil {
-		fmt.Println("Failed to write")
+		log.Println("Failed to write")
 	}
 	_, err = io.Copy(part, file)
 	if err != nil {
-		fmt.Println("Failed to copy file")
+		log.Println("Failed to copy file")
 	}
 	writer.Close()
 
 	request, err := http.NewRequest("POST", apiUrl, requestBody)
 	if err != nil {
-		fmt.Println("Failed to send request")
+		log.Println("Failed to send request")
 	}
 	request.Header.Set("Content-Type", writer.FormDataContentType())
-	request.SetBasicAuth("admin", "admin")
 
 	client := &http.Client{}
 
 	response, err := client.Do(request)
 	if err != nil {
-		fmt.Println("Failed to send request")
+		log.Println("Failed to send request")
 	}
 	defer response.Body.Close()
 
 	_, err = io.Copy(&body, response.Body)
 	// body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		fmt.Println("Failed to copy file")
+		log.Println("Failed to copy file")
 	}
-	bodyString := body.String()
-	return string(bodyString)
+	bodyString = string(body.String())
+	return bodyString
 
 }
 
