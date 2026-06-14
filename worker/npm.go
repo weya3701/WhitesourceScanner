@@ -8,10 +8,13 @@ import (
 	"time"
 )
 
+// Npm 結構體用於處理與 npm 套件相關的操作。
 type Npm struct {
-	Command string
+	Command string // 用於執行 npm 命令的指令。
 }
 
+// Download 是一個佔位符函式，用於從 npm 下載指定套件。
+// 目前未實作具體功能。
 func (npm Npm) Download(destination string, packageName string, indexUrl string) string {
 	var cmd string = ""
 	return string(cmd)
@@ -72,12 +75,21 @@ func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 	return nil
 }
 
+// Sync 是一個佔位符函式，用於將檔案同步到目標 URL。
+// 目前未實作具體功能。
 func (npm Npm) Sync(targetUrl string, packageFile string) string {
 	var body string = ""
 	return string(body)
 
 }
 
+// Remove 刪除指定套件名稱對應的臨時目錄。
+//
+// 參數:
+//   - packageName: 要刪除的套件名稱。
+//
+// 返回:
+//   - error: 如果刪除失敗，返回錯誤；否則返回 nil。
 func (npm Npm) Remove(packageName string) error {
 	fullPath := fmt.Sprintf("./tmp/%s", packageName)
 	err := os.RemoveAll(fullPath)

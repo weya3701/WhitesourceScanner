@@ -14,10 +14,20 @@ import (
 	"time"
 )
 
+// Pypi 結構體用於處理與 Python PyPI 套件相關的操作。
 type Pypi struct {
-	Command string
+	Command string // 用於執行 pip 命令的指令。
 }
 
+// Download 從 PyPI 下載指定套件到目的地。
+//
+// 參數:
+//   - destination: 下載套件的目標目錄。
+//   - packageName: 要下載的套件名稱。
+//   - indexUrl: PyPI 索引 URL (可選)。
+//
+// 返回:
+//   - string: 命令的輸出結果。
 func (py Pypi) Download(destination string, packageName string, indexUrl string) string {
 	var cmd string
 	cmd = fmt.Sprintf("pip download %s --dest %s/%s/ %s", indexUrl, destination, packageName, packageName)
@@ -28,6 +38,15 @@ func (py Pypi) Download(destination string, packageName string, indexUrl string)
 	return string(out)
 }
 
+// SyncPackages 根據 requirements 文件同步 PyPI 套件。
+// 它會創建必要的下載和報告目錄，然後使用 pip download 命令下載套件。
+//
+// 參數:
+//   - destination: 要同步套件的目的地目錄名稱 (例如 "package1")。此名稱將用作子目錄，在 package_tmp 和 report_tmp 目錄中創建。
+//   - requirementsFile: 包含要下載套件的 requirements 檔案的路徑。
+//
+// 返回:
+//   - error: 如果發生任何錯誤，將返回一個錯誤。否則，返回 nil 表示成功。
 func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 
 	var err error = nil
@@ -59,6 +78,15 @@ func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 	return nil
 }
 
+// Sync 將指定的套件檔案上傳到目標 URL。
+// 它使用 multipart/form-data 格式發送 POST 請求。
+//
+// 參數:
+//   - targetUrl: 上傳目標的 URL。
+//   - packageFile: 要上傳的套件檔案的路徑。
+//
+// 返回:
+//   - string: 伺服器回應的主體內容。
 func (py Pypi) Sync(targetUrl string, packageFile string) string {
 
 	var body bytes.Buffer
@@ -108,6 +136,13 @@ func (py Pypi) Sync(targetUrl string, packageFile string) string {
 
 }
 
+// Remove 刪除指定套件名稱對應的臨時目錄。
+//
+// 參數:
+//   - packageName: 要刪除的套件名稱。
+//
+// 返回:
+//   - error: 如果刪除失敗，返回錯誤；否則返回 nil。
 func (py Pypi) Remove(packageName string) error {
 	fullPath := fmt.Sprintf("./tmp/%s", packageName)
 	err := os.RemoveAll(fullPath)

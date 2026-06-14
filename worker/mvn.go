@@ -10,10 +10,13 @@ import (
 	"time"
 )
 
+// Mvn 結構體用於處理與 Maven 依賴項相關的操作。
 type Mvn struct {
-	Command string
+	Command string // 用於執行 Maven 命令的指令。
 }
 
+// Download 是一個佔位符函式，用於從 Maven 倉庫下載指定套件。
+// 目前未實作具體功能。
 func (mvn Mvn) Download(destination string, packageName string, indexUrl string) string {
 	var out string = ""
 	return string(out)
@@ -31,7 +34,6 @@ func (mvn Mvn) Download(destination string, packageName string, indexUrl string)
 // 7. 使用 `dependency:tree` 命令生成依賴項樹並將其儲存到文件。
 //
 // 參數：
-//   - mvn: 指向 Mvn 結構體的指標 (未使用，可能為預留)。
 //   - destination: 字符串，用於指定下載和報告的相對路徑。  這個路徑會被加入到 `$package_tmp` 和 `$report_tmp` 環境變數指定的基礎路徑中，形成完整的下載和報告路徑。
 //   - requirementsFile: 字符串，指向包含 Maven 依賴項的文件。
 //
@@ -88,6 +90,8 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 	return nil
 }
 
+// Sync 是一個佔位符函式，用於將檔案同步到目標 URL。
+// 目前未實作具體功能。
 func (mvn Mvn) Sync(targetUrl string, packageFile string) string {
 
 	var body string = ""
@@ -95,6 +99,13 @@ func (mvn Mvn) Sync(targetUrl string, packageFile string) string {
 
 }
 
+// Remove 刪除指定套件名稱對應的臨時目錄。
+//
+// 參數:
+//   - packageName: 要刪除的套件名稱。
+//
+// 返回:
+//   - error: 如果刪除失敗，返回錯誤；否則返回 nil。
 func (mvn Mvn) Remove(packageName string) error {
 	fullPath := fmt.Sprintf("./tmp/%s", packageName)
 	err := os.RemoveAll(fullPath)
