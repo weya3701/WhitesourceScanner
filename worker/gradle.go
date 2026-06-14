@@ -8,56 +8,22 @@ import (
 	"time"
 )
 
+// Gradle 結構體用於處理與 Gradle 相關的操作。
 type Gradle struct {
-	Command string
+	Command string // 用於執行 Gradle 命令的指令。
 }
 
+// ReplaceRule 結構體定義了一個替換規則，包含舊字符串和新字符串。
 type ReplaceRule struct {
-	Old string
-	New string
+	Old string // 要搜尋的舊字符串。
+	New string // 替換舊字符串的新字符串。
 }
 
-// FIXME. 移至檔案操作模組
-// func copyFile(sourcePath, destinationDir string) error {
-// 	// 1. 檢查源檔案是否存在
-// 	sourceFile, err := os.Open(sourcePath)
-// 	if err != nil {
-// 		return fmt.Errorf("無法開啟源檔案 '%s': %w", sourcePath, err)
-// 	}
-// 	defer sourceFile.Close()
+// getBuildTemplate 返回一個 Gradle 任務的字串模板，用於下載依賴項。
+// 該模板包含一個 `downloadDependencies` 任務，會將運行時依賴複製到指定目錄。
 //
-// 	// 2. 獲取源檔案的檔案資訊 (用於獲取檔案名稱)
-// 	fileInfo, err := sourceFile.Stat()
-// 	if err != nil {
-// 		return fmt.Errorf("無法獲取源檔案資訊 '%s': %w", sourcePath, err)
-// 	}
-// 	fileName := fileInfo.Name()
-//
-// 	// 3. 創建目標檔案的路徑
-// 	destinationPath := filepath.Join(destinationDir, fileName)
-//
-// 	// 4. 創建目標檔案
-// 	destinationFile, err := os.Create(destinationPath)
-// 	if err != nil {
-// 		return fmt.Errorf("無法創建目標檔案 '%s': %w", destinationPath, err)
-// 	}
-// 	defer destinationFile.Close()
-//
-// 	// 5. 複製檔案內容
-// 	_, err = io.Copy(destinationFile, sourceFile)
-// 	if err != nil {
-// 		return fmt.Errorf("複製檔案內容錯誤: %w", err)
-// 	}
-//
-// 	// 6. 複製檔案權限 (如果需要的話)
-// 	err = os.Chmod(destinationPath, fileInfo.Mode())
-// 	if err != nil {
-// 		fmt.Printf("警告: 無法設置目標檔案權限 '%s': %v\n", destinationPath, err)  // 不返回錯誤，繼續執行
-// 	}
-//
-// 	return nil
-// }
-
+// 返回:
+//   - string: Gradle 任務的字串模板。
 func getBuildTemplate() string {
 	return `task downloadDependencies(type: Copy) {
 		from configurations.runtimeClasspath
@@ -66,51 +32,14 @@ func getBuildTemplate() string {
 	`
 }
 
-// readFileContent 函數從指定文件路徑讀取文件內容，並根據提供的替換規則進行文本替換。
-//
-// 參數：
-//   - filePath: 要讀取的文件路徑。
-//   - rules: 替換規則的切片。每個 ReplaceRule 包含要查找的舊字符串和要替換的新字符串。
-//
-// 返回值：
-//   - string: 處理後的文件的內容。如果發生錯誤，則返回空字符串。
-//   - error: 如果發生錯誤，則返回錯誤信息；否則返回 nil。
-// func readFileContent(filePath string, rules []ReplaceRule) (string, error) {
-// 	file, err := os.Open(filePath)
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	defer file.Close()
-//
-// 	reader := bufio.NewReader(file)
-// 	var content strings.Builder
-//
-// 	for {
-// 		line, err := reader.ReadString('\n')
-// 		if err == io.EOF {
-// 			break
-// 		}
-//
-// 		if err != nil {
-// 			return "", err
-// 		}
-// 		for _, rule := range rules {
-// 			line = strings.ReplaceAll(line, rule.Old, rule.New)
-// 		}
-//
-// 		content.WriteString(line)
-// 	}
-// 	return content.String(), nil
-// }
-
-// File 將內容追加到指定的文件中。
+// appendToFile 將內容追加到指定的文件中。
 //
 // 參數：
 //   - filePath: 要追加內容的文件路徑。
 //   - content: 要追加到文件的字符串內容。
 //
 // 傳回值：
-//   - error
+//   - error: 如果開啟文件或寫入內容失敗，返回錯誤；否則返回 nil。
 func appendToFile(filePath string, content string) error {
 	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -126,25 +55,25 @@ func appendToFile(filePath string, content string) error {
 	return nil
 }
 
+// Download 是一個佔位符函式，用於從 Gradle 倉庫下載指定套件。
+// 目前未實作具體功能。
 func (gradle Gradle) Download(destination string, packageName string, indexUrl string) string {
 	var cmd string = "Need to implement"
 	return string(cmd)
 }
 
-// FIXME. 需新增./templates/build_tasks.gradled檔案
 // SyncPackages 函數用於同步 Gradle 專案的套件依賴。
 // 該函數通過以下步驟實現：
-//  1. 從模板檔案 `./templates/build_tasks.gradle` 讀取內容，該檔案包含用於下載依賴項的 Gradle 任務。
-//  2. 替換模板中的特定佔位符，例如將 `<destPath>` 替換為下載目標路徑。
-//  3. 將修改後的 Gradle 任務內容追加到需求檔案 `requirementsFile` 中。
-//  4. 建立用於儲存下載套件的目錄。
+//  1. 根據下載目的地格式化 Gradle 任務內容。
+//  2. 將修改後的 Gradle 任務內容追加到需求檔案 `requirementsFile` 中。
+//  3. 建立用於儲存下載套件的目錄。
+//  4. 建立用於儲存報告的目錄。
 //  5. 執行 Gradle 命令，使用 `-p .` 指定專案根目錄，並執行 `downloadDependencies` 任務來下載依賴項。
-//  6. 建立用於儲存報告的目錄。
-//  7. 執行 Gradle 命令，獲取依賴樹。
+//  6. 執行 Gradle 命令，獲取依賴樹並儲存到檔案。
 //
 // 參數:
 //   - destination:  套件的目標目錄，通常是專案名稱或版本。
-//   - requirementsFile:  用於存儲 Gradle 配置的檔案路徑，會將 downloadDependencies 任务 添加到该文件
+//   - requirementsFile:  用於存儲 Gradle 配置的檔案路徑，會將 downloadDependencies 任务 添加到該文件
 //
 // 返回:
 //   - error: 如果在任何步驟中發生錯誤，則返回錯誤訊息；否則返回 nil。
@@ -202,12 +131,21 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 	return nil
 }
 
+// Sync 是一個佔位符函式，用於將檔案同步到目標 URL。
+// 目前未實作具體功能。
 func (gradle Gradle) Sync(targetUrl string, packageFile string) string {
 	var output string = "Need to implement"
 	return string(output)
 
 }
 
+// Remove 刪除指定套件名稱對應的臨時目錄。
+//
+// 參數:
+//   - packageName: 要刪除的套件名稱。
+//
+// 返回:
+//   - error: 如果刪除失敗，返回錯誤；否則返回 nil。
 func (gradle Gradle) Remove(packageName string) error {
 	fullPath := fmt.Sprintf("./tmp/%s", packageName)
 	err := os.RemoveAll(fullPath)

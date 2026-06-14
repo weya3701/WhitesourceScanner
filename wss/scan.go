@@ -13,13 +13,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// scanMutexMap 用於儲存每個 taskId 關聯的互斥鎖，以確保掃描操作的執行順序。
 var scanMutexMap sync.Map
 
+// GetScanSingleton 根據 taskId 獲取一個單例互斥鎖。
+// 如果該 taskId 尚無互斥鎖，則會創建一個並儲存。
+//
+// 參數:
+//   - taskId: 用於識別特定掃描任務的唯一 ID。
+//
+// 返回:
+//   - *sync.Mutex: 與 taskId 關聯的互斥鎖。
 func GetScanSingleton(taskId string) *sync.Mutex {
 	mutex, _ := scanMutexMap.LoadOrStore(taskId, &sync.Mutex{})
 	return mutex.(*sync.Mutex)
 }
 
+// ParserEnv 從 YAML 檔案路徑解析環境配置到 WhiteSourceEnv 結構中。
+//
+// 參數:
+//   - fpath: YAML 配置檔案的路徑。
 func (config *WhiteSourceEnv) ParserEnv(fpath string) {
 
 	data, err := os.ReadFile(fpath)
@@ -33,14 +46,24 @@ func (config *WhiteSourceEnv) ParserEnv(fpath string) {
 	}
 }
 
+// SetProjectName 設定 WhiteSourceEnv 實例的 ProjectName。
+//
+// 參數:
+//   - projectName: 指向專案名稱字符串的指標。
 func (w *WhiteSourceEnv) SetProjectName(projectName *string) {
 	w.ProjectName = *projectName
 }
 
+// SetProductName 設定 WhiteSourceEnv 實例的 ProductName。
+//
+// 參數:
+//   - productName: 指向產品名稱字符串的指標。
 func (w *WhiteSourceEnv) SetProductName(productName *string) {
 	w.ProductName = *productName
 }
 
+// SetEnv 將 WhiteSourceEnv 結構中的值設定為環境變數。
+// 這些環境變數包括 WS_APIKEY, WS_USERKEY, WS_PROJECTNAME, WS_PRODUCTNAME, WS_PRODUCTTOKEN, WS_WSS_URL, WS_OFFLINE。
 func (w WhiteSourceEnv) SetEnv() {
 	os.Setenv("WS_APIKEY", w.ApiKey)
 	os.Setenv("WS_USERKEY", w.UserKey)
@@ -51,6 +74,14 @@ func (w WhiteSourceEnv) SetEnv() {
 	os.Setenv("WS_OFFLINE", w.Offline)
 }
 
+// MoveRequestFile 將源檔案重新命名 (移動) 到目標路徑。
+//
+// 參數:
+//   - source: 源檔案路徑。
+//   - destination: 目標檔案路徑。
+//
+// 返回:
+//   - error: 如果重新命名操作失敗，返回錯誤；否則返回 nil。
 func MoveRequestFile(source string, destination string) error {
 	err := os.Rename(source, destination)
 	if err != nil {
@@ -60,21 +91,37 @@ func MoveRequestFile(source string, destination string) error {
 	return err
 }
 
+// CreateDirectory 在指定基礎路徑下建立一個新目錄。
+// 即使目錄已存在，也不會返回錯誤。
+//
+// 參數:
+//   - base: 基礎路徑。
+//   - dirname: 要建立的目錄名稱。
 func CreateDirectory(base string, dirname string) {
 	dir := fmt.Sprintf("%s/%s", base, dirname)
 	os.Mkdir(dir, 0755)
 }
 
+// MendCli 結構體包含用於 Mend CLI 掃描的各種參數。
 type MendCli struct {
-	ExportFile  string
-	Application string
-	PackageName string
-	ProjectName string
-	TarFile     string
-	ImageName   string
-	ImageTag    string
+	ExportFile  string // 導出檔案的路徑。
+	Application string // 應用程式名稱。
+	PackageName string // 套件名稱。
+	ProjectName string // 專案名稱。
+	TarFile     string // Docker tar 檔案的路徑。
+	ImageName   string // Docker 映像檔名稱。
+	ImageTag    string // Docker 映像檔標籤。
 }
 
+// initialUnifiedAgent 初始化並下載統一代理 (Unified Agent) 檔案。
+// 它會檢查目標目錄和代理檔案是否存在，如果不存在則會創建目錄並下載代理。
+//
+// 參數:
+//   - fpath: 統一代理的存放目錄。
+//   - filename: 統一代理檔案的名稱。
+//
+// 返回:
+//   - error: 如果在目錄或檔案操作中發生錯誤，或下載失敗，返回錯誤；否則返回 nil。
 func initialUnifiedAgent(fpath, filename string) error {
 	var err error = nil
 
@@ -116,6 +163,16 @@ func initialUnifiedAgent(fpath, filename string) error {
 	return err
 }
 
+// getUnifiedAgent 執行命令下載統一代理 (Unified Agent) 檔案。
+// 它會將命令的輸出結果寫入到指定的檔案。
+//
+// 參數:
+//   - filename: 輸出檔案的名稱，下載的代理將寫入此檔案。
+//   - prefix: 下載工具的命令前綴 (例如 "wget")。
+//   - cmds: 要執行的命令參數，應包含下載 URL 和輸出路徑。
+//
+// 返回:
+//   - error: 如果命令執行失敗或寫入檔案失敗，返回錯誤；否則返回 nil。
 func getUnifiedAgent(filename string, prefix string, cmds []string) error {
 
 	var err error = nil
@@ -138,6 +195,11 @@ func getUnifiedAgent(filename string, prefix string, cmds []string) error {
 	return err
 }
 
+// DoDockerTarFileScan 使用 Mend CLI 執行 Docker Tar 檔案掃描。
+// 它會根據 MendCli 結構中的參數構建並執行掃描命令。
+//
+// 參數:
+//   - cli: 包含掃描所需參數的 MendCli 結構實例。
 func DoDockerTarFileScan(cli MendCli) {
 	scanScope := fmt.Sprintf("\"%s//%s\"", cli.Application, cli.ProjectName)
 	var dockerTarFile string
@@ -157,6 +219,17 @@ func DoDockerTarFileScan(cli MendCli) {
 	fmt.Println(stdout.String())
 }
 
+// DoScan 執行 WhiteSource 掃描。
+// 它首先會初始化統一代理，然後根據提供的套件路徑和配置執行掃描。
+// 掃描完成後，會將生成的請求檔案移動到指定的專案目錄下。
+//
+// 參數:
+//   - packagePath: 要掃描的套件路徑。
+//   - projectName: 指向專案名稱字符串的指標，用於獲取掃描互斥鎖。
+//   - withConf: 字符串，指示是否使用配置檔案 ("yes" 表示使用)。
+//
+// 返回:
+//   - error: 如果掃描失敗或檔案操作失敗，返回錯誤；否則返回 nil。
 func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf string) error {
 	var err error = nil
 
