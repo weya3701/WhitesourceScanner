@@ -7,10 +7,15 @@ import (
 	"os/exec"
 	"sync"
 	"time"
+
+	"wss/repositoryclient"
 )
 
 // Worker 介面定義了處理套件的通用操作。
 type Worker interface {
+	// Publish 將位於 packageDirPath 的套件發佈到已配置的儲存庫。
+	// conn 包含儲存庫連線資訊，packageDirPath 是要發佈套件的目錄路徑。
+	Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error
 	// Download 從指定索引 URL 下載套件到目標目錄。
 	Download(destination string, packageName string, indexUrl string) string
 	// Sync 將套件檔案同步到目標 URL。
@@ -83,6 +88,15 @@ func (rw WorkerHandler) SyncPackagesFromDefintionFile(projectName string, requir
 //   - error: 如果刪除失敗，返回錯誤；否則返回 nil。
 func (rw WorkerHandler) Remove(fullPath string) error {
 	return rw.worker.Remove(fullPath)
+}
+
+// Publish 使用底層 worker 將位於 packageDirPath 的套件發佈到已配置的儲存庫。
+//
+// 參數:
+//   - conn: 儲存庫連線資訊。
+//   - packageDirPath: 要發佈套件的目錄路徑。
+func (rw WorkerHandler) Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
+	return rw.worker.Publish(conn, packageDirPath)
 }
 
 // NewRepositoryWorker 創建一個新的 WorkerHandler 實例。

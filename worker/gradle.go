@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"time"
+	"wss/repositoryclient"
 )
 
 // Gradle 結構體用於處理與 Gradle 相關的操作。
@@ -103,12 +104,12 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 		return err
 	}
 	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
-		return fmt.Errorf("Create pakcages directory failed:%w", err)
+		return fmt.Errorf("Create packages directory failed:%w", err)
 	}
 	if err = os.MkdirAll(reportDestination, 0755); err != nil {
 		return fmt.Errorf("Create report directory failed: %w", err)
 	} else {
-		fmt.Printf("Create %s successful.", reportDestination)
+		fmt.Printf("Create %s successful.\n", reportDestination)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
@@ -137,6 +138,20 @@ func (gradle Gradle) Sync(targetUrl string, packageFile string) string {
 	var output string = "Need to implement"
 	return string(output)
 
+}
+
+// Publish 將位於 packageDirPath 的套件發佈到 Gradle 儲存庫。
+// 此實現為佔位符。實際的 Gradle 發佈通常需要詳細的 build.gradle 配置和認證設置。
+func (gradle Gradle) Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
+	// 實際的 Gradle 發佈邏輯會非常複雜，需要處理 build.gradle 配置、Maven/Ivy 儲存庫設定、認證等。
+	// 這裡僅提供一個框架，具體實現需要根據專案和 CI/CD 環境來定制。
+	// 例如:
+	// cmdArgs := []string{"publish", "--build-file", filepath.Join(packageDirPath, "build.gradle")}
+	// 如果需要透過屬性傳遞認證資訊:
+	// cmdArgs := []string{"publish", "-Pusername=" + conn.Username, "-Ppassword=" + conn.PAT, ...}
+
+	// 為了滿足接口要求並保持與其他 worker 的佔位符一致性，這裡返回未實現錯誤。
+	return fmt.Errorf("Gradle Publish method is not fully implemented yet for dynamic publishing. Manual configuration in build.gradle or further logic is required")
 }
 
 // Remove 刪除指定套件名稱對應的臨時目錄。

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+	"wss/repositoryclient"
 )
 
 // Pypi 結構體用於處理與 Python PyPI 套件相關的操作。
@@ -134,6 +135,52 @@ func (py Pypi) Sync(targetUrl string, packageFile string) string {
 	bodyString = string(body.String())
 	return bodyString
 
+}
+
+// Publish 將位於 packageDirPath 的套件發佈到 PyPI 儲存庫。
+// 它使用 `twine upload` 命令，並透過環境變數處理認證。
+// packageDirPath 應該包含要上傳的 `.whl` 或 `.tar.gz` 檔案。
+func (py Pypi) Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
+	// 假設 twine 命令已安裝並在 PATH 中
+	// 假設 TWINE_USERNAME 和 TWINE_PASSWORD 已在環境變數中設置，或者通過 .pypirc 配置
+	// Alternatively, pass --username and --password as arguments, but env vars are safer.
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// 設置 Twine 認證環境變數 (如果連接資訊提供)
+	// 如果 conn.Username 和 conn.PAT 是空字串，這將不會覆蓋已存在的環境變數
+	if conn.Username != "" {
+		os.Setenv("TWINE_USERNAME", conn.Username)
+	}
+	if conn.PAT != "" {
+		os.Setenv("TWINE_PASSWORD", conn.PAT)
+	}
+
+	// 尋找要上傳的檔案模式，通常是 *.whl 或 *.tar.gz
+	// `packageDirPath` 應該是包含這些檔案的目錄
+	uploadPattern := filepath.Join(packageDirPath, "*")
+
+	// `twine upload --repository-url <URL> <files...>`
+	cmdArgs := []string{"upload", "--repository-url", conn.Url, uploadPattern}
+
+	cmd := exec.CommandContext(ctx, "twine", cmdArgs...) // 假設 twine 在 PATH 中
+	cmd.Dir = packageDirPath                             // 在 packageDirPath 執行，以便 `*` 能正確展開
+
+	// 捕獲標準輸出和錯誤輸出
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	log.Printf("Executing twine: %s %v\n", "twine", cmdArgs)
+	log.Printf("Twine command output:\n%s\n%s", stdout.String(), stderr.String())
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("twine upload failed: %w\nStdout: %s\nStderr: %s", err, stdout.String(), stderr.String())
+	}
+
+	log.Printf("Successfully published packages from %s to %s", packageDirPath, conn.Url)
+	return nil
 }
 
 // Remove 刪除指定套件名稱對應的臨時目錄。
