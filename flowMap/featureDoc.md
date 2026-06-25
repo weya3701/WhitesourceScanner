@@ -29,11 +29,9 @@
 
 ** 現有架構
 * worker/
-    gradle.go
-    handler.go
-    mvn.go
-    npm.go
-    pypi.go
-    urlget.go
-
-
+    * gradle.go
+    * handler.go
+    * mvn.go
+    * npm.go
+    * pypi.go
+    * urlget.go
