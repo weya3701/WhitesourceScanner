@@ -46,9 +46,9 @@ func PublishPackage(packageType string, conn *repositoryclient.RepositoryConnect
 
 // SyncDefintionPackages 同步定義檔中的套件。
 // 它會根據 packageType 選擇合適的 worker 進行套件同步。
-func SyncDefinitionPackages(packageType string, projectName string, requirementsFile string) {
+func SyncDefinitionPackages(packageType string, projectName string, requirementsFile string) error {
 	var wk worker.WorkerHandler = worker.NewRepositoryWorker(initialPackageDefintion(packageType))
-	wk.SyncPackagesFromDefintionFile(projectName, requirementsFile)
+	return wk.SyncPackagesFromDefintionFile(projectName, requirementsFile)
 
 }
 

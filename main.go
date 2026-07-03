@@ -34,8 +34,8 @@ func main() {
 			{
 				Name: "同步定義套件",
 				Func: func() (bool, error) {
-					handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
-					return true, nil
+					err = handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
+					return true, err
 				},
 			},
 			{

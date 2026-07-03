@@ -124,7 +124,7 @@ func (ug UrlGet) SyncPackages(destination string, requirementsFile string) error
 
 	concurrencyStr := os.Getenv("concurrency")
 	concurrencyInt, _ := strconv.Atoi(concurrencyStr)
-	ParallelDownload(downloadTasks, concurrencyInt)
+	err = ParallelDownload(downloadTasks, concurrencyInt)
 
 	return err
 }
@@ -174,6 +174,7 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 	fmt.Println(cmd)
 	// cmd := exec.CommandContext(ctx, os.Getenv("wget"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
+	fmt.Println("cmdArgs: ", cmdArgs, "out: ", string(out), "error: ", err)
 	if err != nil {
 		errChan <- fmt.Errorf("curl download failed: %w, output: %s", err, string(out))
 	}

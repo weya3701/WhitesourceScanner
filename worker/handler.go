@@ -75,8 +75,8 @@ func (rw WorkerHandler) Sync(targetUrl string, packageFile string) {
 // 參數:
 //   - projectName: 專案名稱。
 //   - requirementsFile: 包含套件定義的檔案路徑。
-func (rw WorkerHandler) SyncPackagesFromDefintionFile(projectName string, requirementsFile string) {
-	rw.worker.SyncPackages(projectName, requirementsFile)
+func (rw WorkerHandler) SyncPackagesFromDefintionFile(projectName string, requirementsFile string) error {
+	return rw.worker.SyncPackages(projectName, requirementsFile)
 }
 
 // Remove 使用底層 worker 刪除指定路徑的套件。
