@@ -20,9 +20,8 @@ import (
 func initialPackageDefintion(packageType string) worker.Worker {
 
 	switch packageType {
-	case "python":
-
-		return worker.Pypi{}
+	case "pip":
+		return worker.Pypi{Command: os.Getenv("pip")}
 	case "maven":
 		return worker.Mvn{Command: os.Getenv("maven")}
 	case "npm":
@@ -32,7 +31,7 @@ func initialPackageDefintion(packageType string) worker.Worker {
 	case "wget":
 		return worker.UrlGet{Command: os.Getenv("wget")}
 	default:
-		return worker.Pypi{Command: os.Getenv("pypi")}
+		return worker.Pypi{Command: os.Getenv("pip")}
 	}
 
 }
