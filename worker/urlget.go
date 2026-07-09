@@ -168,8 +168,10 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	dest := fmt.Sprintf("%s/%s", task.DownloadDestination, task.Filename)
-	cmdArgs := []string{task.URL, "-o", dest}
+	dest := fmt.Sprintf("%s", task.DownloadDestination)
+	// dest := fmt.Sprintf("%s/%s", task.DownloadDestination, task.Filename)
+	cmdArgs := []string{"--directory-prefix", dest, task.URL}
+	// cmdArgs := []string{task.URL, "-o", dest}
 	cmd := exec.CommandContext(ctx, task.Command, cmdArgs...)
 	fmt.Println(cmd)
 	// cmd := exec.CommandContext(ctx, os.Getenv("wget"), cmdArgs...)

@@ -147,9 +147,9 @@ func initialUnifiedAgent(fpath, filename string) error {
 			filename,
 			os.Getenv("wget"),
 			[]string{
+				"--directory-prefix",
+				fmt.Sprintf("%s", fpath),
 				os.Getenv("agentURL"),
-				"-o",
-				fmt.Sprintf("%s/%s", fpath, filename),
 			},
 		)
 		if initAgentErr != nil {
