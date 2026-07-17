@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
-	"wss/repositoryclient"
 )
 
 // Mvn 結構體用於處理與 Maven 依賴項相關的操作。
@@ -98,24 +97,6 @@ func (mvn Mvn) Sync(targetUrl string, packageFile string) string {
 	var body string = ""
 	return string(body)
 
-}
-
-// Publish 將位於 packageDirPath 的套件發佈到 Maven 儲存庫。
-// 此實現為佔位符。實際的 Maven 發佈通常需要 settings.xml 配置和認證設置。
-func (mvn Mvn) Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
-	// 實際的 Maven 發佈邏輯會涉及 `mvn deploy` 命令，並可能需要動態生成 `settings.xml` 或傳遞 `-D` 參數。
-	// 這裡僅提供一個框架，具體實現需要根據專案和 CI/CD 環境來定制。
-	// 例如：
-	// `packageDirPath` 應指向包含 `pom.xml` 的目錄。
-	// cmdArgs := []string{"deploy", "-f", filepath.Join(packageDirPath, "pom.xml"),
-	//                    "-DaltDeploymentRepository=" + conn.ID + "::default::" + conn.Url,
-	//                    "-DrepositoryId=" + conn.ID,
-	//                    "-Dmaven.repo.local=" + os.Getenv("MAVEN_LOCAL_REPO_PATH")
-	// }
-	// 如果有 PAT，可以考慮設定環境變數或傳遞 `-D` 參數給 Maven Helper Plugin。
-
-	// 為了滿足接口要求並保持與其他 worker 的佔位符一致性，這裡返回未實現錯誤。
-	return fmt.Errorf("Maven Publish method is not fully implemented yet for dynamic publishing. Manual configuration in settings.xml or further logic is required")
 }
 
 // Remove 刪除指定套件名稱對應的臨時目錄。
