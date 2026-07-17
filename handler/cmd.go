@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"time"
-	"wss/repositoryclient"
 	"wss/worker"
 	"wss/wss"
 
@@ -34,13 +33,6 @@ func initialPackageDefintion(packageType string) worker.Worker {
 		return worker.Pypi{Command: os.Getenv("pip")}
 	}
 
-}
-
-// PublishPackage 根據 packageType 將位於 packageDirPath 的套件發佈到已配置的儲存庫。
-// 它會根據 packageType 選擇合適的 worker 進行套件發佈。
-func PublishPackage(packageType string, conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
-	wk := worker.NewRepositoryWorker(initialPackageDefintion(packageType))
-	return wk.Publish(conn, packageDirPath)
 }
 
 // SyncDefintionPackages 同步定義檔中的套件。

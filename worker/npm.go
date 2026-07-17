@@ -1,15 +1,11 @@
 package worker
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"log" // Added log import
+	"fmt" // Added log import
 	"os"
-	"os/exec"
-	"strings" // Added strings import
+	"os/exec" // Added strings import
 	"time"
-	"wss/repositoryclient"
 )
 
 // Npm 結構體用於處理與 npm 套件相關的操作。
@@ -85,78 +81,6 @@ func (npm Npm) Sync(targetUrl string, packageFile string) string {
 	var body string = ""
 	return string(body)
 
-}
-
-// Publish 將位於 packageDirPath 的套件發佈到 npm 儲存庫。
-// packageDirPath 應該是 npm 套件的根目錄 (包含 package.json)。
-func (npm Npm) Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	// 1. 配置 npm registry (如果提供了 URL)
-	if conn.Url != "" {
-		log.Printf("Configuring npm registry to: %s", conn.Url)
-		configCmdArgs := []string{"config", "set", "registry", conn.Url}
-		configCmd := exec.CommandContext(ctx, npm.Command, configCmdArgs...)
-		configCmd.Dir = packageDirPath
-		if out, err := configCmd.CombinedOutput(); err != nil {
-			log.Printf("Failed to set npm registry: %s, output: %s", err, string(out))
-			// 不返回錯誤，因為有些情況下可能不需要設定，或者已經設定好
-		}
-	}
-
-	// 2. 配置認證 (如果提供了 PAT 或 Base64PAT)
-	// npm 認證通常透過 .npmrc 中的 _authToken 或 npm login 處理。
-	// 這裡使用 `npm config set` 設定 `_authToken`，這需要 Base64 編碼的 PAT。
-	if conn.Base64PAT != "" && conn.Url != "" {
-		authCmdArgs := []string{"config", "set", "//" + strings.TrimPrefix(conn.Url, "http://") + "/:_authToken", conn.Base64PAT}
-		if strings.HasPrefix(conn.Url, "https://") {
-			authCmdArgs = []string{"config", "set", "//" + strings.TrimPrefix(conn.Url, "https://") + "/:_authToken", conn.Base64PAT}
-		}
-
-		log.Printf("Configuring npm authentication for %s", conn.Url)
-		authCmd := exec.CommandContext(ctx, npm.Command, authCmdArgs...)
-		authCmd.Dir = packageDirPath
-		if out, err := authCmd.CombinedOutput(); err != nil {
-			log.Printf("Failed to set npm auth token: %s, output: %s", err, string(out))
-			// 不返回錯誤，因為有些情況下可能不需要設定，或者已經設定好
-		}
-	} else if conn.PAT != "" && conn.Url != "" {
-		// 如果提供了 PAT 但不是 Base64 編碼的，嘗試進行 Base64 編碼
-		log.Printf("Warning: PAT provided for npm publish is not Base64 encoded. Attempting to encode.")
-		encodedPAT := conn.PAT // 假設這裡的 PAT 已經是明文或者會被 npm 自己處理
-		authCmdArgs := []string{"config", "set", "//" + strings.TrimPrefix(conn.Url, "http://") + "/:_authToken", encodedPAT}
-		if strings.HasPrefix(conn.Url, "https://") {
-			authCmdArgs = []string{"config", "set", "//" + strings.TrimPrefix(conn.Url, "https://") + "/:_authToken", encodedPAT}
-		}
-
-		log.Printf("Configuring npm authentication for %s with raw PAT (consider using Base64PAT)", conn.Url)
-		authCmd := exec.CommandContext(ctx, npm.Command, authCmdArgs...)
-		authCmd.Dir = packageDirPath
-		if out, err := authCmd.CombinedOutput(); err != nil {
-			log.Printf("Failed to set npm auth token with raw PAT: %s, output: %s", err, string(out))
-		}
-	}
-
-	// 3. 執行 npm publish
-	log.Printf("Publishing npm package from %s to registry %s", packageDirPath, conn.Url)
-	cmdArgs := []string{"publish"}
-	// 可以添加 --access public/restricted 如果需要
-	// 可以添加 --tag <tag> 如果需要
-
-	cmd := exec.CommandContext(ctx, npm.Command, cmdArgs...)
-	cmd.Dir = packageDirPath // 在套件目錄中執行
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("npm publish failed: %w\nStdout: %s\nStderr: %s", err, stdout.String(), stderr.String())
-	}
-
-	log.Printf("Successfully published npm package from %s", packageDirPath)
-	return nil
 }
 
 // Remove 刪除指定套件名稱對應的臨時目錄。

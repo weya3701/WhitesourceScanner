@@ -11,7 +11,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"wss/repositoryclient"
 )
 
 // UrlGet 結構體用於處理從 URL 獲取檔案的操作。
@@ -135,12 +134,6 @@ func (ug UrlGet) Sync(targetUrl string, packageFile string) string {
 	var bodyString string = ""
 	return string(bodyString)
 
-}
-
-// Publish 是一個佔位符函式，用於將套件發佈到儲存庫。
-// UrlGet 主要是用於下載，不提供發佈功能。
-func (ug UrlGet) Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
-	return fmt.Errorf("UrlGet does not support package publishing")
 }
 
 // Remove 是一個佔位符函式，用於刪除指定套件名稱對應的臨時目錄。
