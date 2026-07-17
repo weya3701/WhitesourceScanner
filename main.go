@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
+	"os"
+	"strings"
 	"wss/handler"
 	"wss/wss"
 
@@ -49,7 +52,14 @@ func (br *BatchRunner) Run() (bool, error) {
 }
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "執行失敗: %v\n", err)
+		os.Exit(1)
+	}
+}
 
+func run() error {
 	mode := flag.String("mode", "", "App Mode")
 	packageName := flag.String("package_name", "", "Package Name")
 	projectName := flag.String("project_name", "", "Project Name")
@@ -63,18 +73,30 @@ func main() {
 	requirementsFile := flag.String("requirements_file", "", "Requirements File")
 	flag.Parse()
 
-	err := godotenv.Load(".env")
-	if err != nil {
+	if err := godotenv.Load(".env"); err != nil {
 		fmt.Println("Failed to load environ")
 	}
 
-	if *mode == "reqfile" {
-		tasks := []BatchTask{
+	if err := validateArguments(*mode, *packageName, *projectName, *application, *packageType, *requirementsFile); err != nil {
+		return err
+	}
+	config, err := wss.LoadRuntimeConfig()
+	if err != nil {
+		return err
+	}
+	if err := config.Validate(*mode, *packageType); err != nil {
+		return err
+	}
+
+	var tasks []BatchTask
+	switch *mode {
+	case "reqfile":
+		tasks = []BatchTask{
 			{
 				Name: "同步定義套件",
 				Func: func() (bool, error) {
-					err = handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
-					return true, err
+					err := handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
+					return err == nil, err
 				},
 			},
 			{
@@ -107,15 +129,8 @@ func main() {
 			},
 		}
 
-		runner := NewBatchRunner(tasks)
-		if success, runErr := runner.Run(); !success {
-			fmt.Printf("批次執行失敗: %v\n", runErr)
-		} else {
-			fmt.Println("批次執行成功完成！")
-		}
-	}
-	if *mode == "cmd" {
-		tasks := []BatchTask{
+	case "cmd":
+		tasks = []BatchTask{
 			{
 				Name: "取得套件報告",
 				Func: func() (bool, error) {
@@ -141,21 +156,12 @@ func main() {
 			{
 				Name: "取得庫存報告",
 				Func: func() (bool, error) {
-					handler.GetInventoryReport(*projectName, *packageType)
-					return true, nil
+					return handler.GetInventoryReport(*projectName, *packageType)
 				},
 			},
 		}
-
-		runner := NewBatchRunner(tasks)
-		if success, runErr := runner.Run(); !success {
-			fmt.Printf("批次執行失敗: %v\n", runErr)
-		} else {
-			fmt.Println("批次執行成功完成！")
-		}
-	}
-	if *mode == "image" {
-		tasks := []BatchTask{
+	case "image":
+		tasks = []BatchTask{
 			{
 				Name: "執行 Docker Tar 檔案掃描",
 				Func: func() (bool, error) {
@@ -168,17 +174,55 @@ func main() {
 						*imageName,
 						*imageTag,
 					)
-					wss.DoDockerTarFileScan(mendCli)
-					return true, nil
+					err := wss.DoDockerTarFileScan(mendCli)
+					return err == nil, err
 				},
 			},
 		}
+	}
 
-		runner := NewBatchRunner(tasks)
-		if success, runErr := runner.Run(); !success {
-			fmt.Printf("批次執行失敗: %v\n", runErr)
-		} else {
-			fmt.Println("批次執行成功完成！")
+	runner := NewBatchRunner(tasks)
+	if success, err := runner.Run(); !success {
+		return err
+	}
+	fmt.Println("批次執行成功完成！")
+	return nil
+}
+
+func validateArguments(mode, packageName, projectName, application, packageType, requirementsFile string) error {
+	if mode != "cmd" && mode != "reqfile" && mode != "image" {
+		return fmt.Errorf("mode 必須是 cmd、reqfile 或 image")
+	}
+	if projectName == "" {
+		return fmt.Errorf("project_name 為必填")
+	}
+	if strings.ContainsAny(projectName, `/\\`) || projectName == "." || projectName == ".." {
+		return fmt.Errorf("project_name 不可包含路徑分隔符")
+	}
+	if mode == "image" {
+		if application == "" {
+			return fmt.Errorf("image 模式需要 application")
+		}
+		return nil
+	}
+	if packageName == "" {
+		return fmt.Errorf("%s 模式需要 package_name", mode)
+	}
+	if mode == "reqfile" {
+		if packageType == "" || requirementsFile == "" {
+			return fmt.Errorf("reqfile 模式需要 package_type 與 requirements_file")
+		}
+		supported := map[string]bool{"pip": true, "maven": true, "npm": true, "gradle": true, "wget": true}
+		if !supported[packageType] {
+			return fmt.Errorf("package_type 必須是 pip、maven、npm、gradle 或 wget")
+		}
+		info, err := os.Stat(requirementsFile)
+		if err != nil {
+			return fmt.Errorf("無法讀取 requirements_file: %w", err)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("requirements_file 不可為目錄")
 		}
 	}
+	return nil
 }

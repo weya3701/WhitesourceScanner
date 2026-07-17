@@ -1,16 +1,18 @@
 package wss
 
+import "encoding/json"
+
 type AsyncProcess struct {
-	Uuid               string `json:"uuid" url:"uuid,omitempty"`
-	RequestToken       string `json:"requestToken" url:"requestToken,omitempty"`
-	ContextId          string `json:"contextId" url:"contextId,omitempty"`
-	ContextType        string `json:"contextType" url:"contextType,omitempty"`
-	ProcessType        string `json:"processType" url:"processType,omitempty"`
-	UserEmail          string `json:"userEmail" url:"userEmail,omitempty"`
-	MessageContentSha1 string `json:"messageContentSha1" url:"messageContentSha1,omitempty"`
-	Status             string `json:"status" url:"status,omitempty"`
-	Created            string `json:"created" url:"created,omitempty"`
-	Modified           string `json:"modified" url:"modified,omitempty"`
+	Uuid               string          `json:"uuid" url:"uuid,omitempty"`
+	RequestToken       string          `json:"requestToken" url:"requestToken,omitempty"`
+	ContextId          json.RawMessage `json:"contextId" url:"contextId,omitempty"`
+	ContextType        string          `json:"contextType" url:"contextType,omitempty"`
+	ProcessType        string          `json:"processType" url:"processType,omitempty"`
+	UserEmail          string          `json:"userEmail" url:"userEmail,omitempty"`
+	MessageContentSha1 string          `json:"messageContentSha1" url:"messageContentSha1,omitempty"`
+	Status             string          `json:"status" url:"status,omitempty"`
+	Created            string          `json:"created" url:"created,omitempty"`
+	Modified           string          `json:"modified" url:"modified,omitempty"`
 }
 
 type ProcessStatusResponse struct {

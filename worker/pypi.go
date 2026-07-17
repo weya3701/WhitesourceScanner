@@ -29,11 +29,14 @@ type Pypi struct {
 // 返回:
 //   - string: 命令的輸出結果。
 func (py Pypi) Download(destination string, packageName string, indexUrl string) string {
-	var cmd string
-	cmd = fmt.Sprintf("pip download %s --dest %s/%s/ %s", indexUrl, destination, packageName, packageName)
-	out, err := exec.Command("bash", "-c", cmd).Output()
+	args := []string{"download", "--dest", filepath.Join(destination, packageName)}
+	if indexUrl != "" {
+		args = append(args, "--index-url", indexUrl)
+	}
+	args = append(args, packageName)
+	out, err := exec.Command(py.Command, args...).CombinedOutput()
 	if err != nil {
-		log.Println("Failed execute command")
+		log.Printf("pip download failed: %v", err)
 	}
 	return string(out)
 }
@@ -56,8 +59,14 @@ func (py Pypi) SyncPackages(destination string, requirementsFile string) error {
 		return fmt.Errorf("package_tmp is empty")
 	}
 
-	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
-	reportDestination := fmt.Sprintf("%s/%s", reportTmp, destination)
+	downloadDestination, err := safeDestination(packageTmp, destination)
+	if err != nil {
+		return err
+	}
+	reportDestination, err := safeDestination(reportTmp, destination)
+	if err != nil {
+		return err
+	}
 	if err = os.MkdirAll(downloadDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}

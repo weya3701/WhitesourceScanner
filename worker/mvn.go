@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"time"
 )
 
@@ -51,8 +50,14 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 		return fmt.Errorf("requirements file not found: %s", requirementsFile)
 	}
 
-	downloadDestination := filepath.Join(packageTmp, destination)
-	reportDestination := filepath.Join(reportTmp, destination)
+	downloadDestination, err := safeDestination(packageTmp, destination)
+	if err != nil {
+		return err
+	}
+	reportDestination, err := safeDestination(reportTmp, destination)
+	if err != nil {
+		return err
+	}
 
 	if err = os.MkdirAll(downloadDestination, 0755); err != nil {
 		return fmt.Errorf("failed to create download dir: %w", err)
@@ -85,7 +90,9 @@ func (mvn Mvn) SyncPackages(destination string, requirementsFile string) error {
 
 	dependenciesTreeFile := fmt.Sprintf("%s/dependenciesTree.txt", reportDestination)
 	cmds := []string{"dependency:tree", "-f", requirementsFile, fmt.Sprintf("-Dmaven.repo.local=%s", downloadDestination), "-DincludeScope=runtime", "-U"}
-	GetDependenciesTree(dependenciesTreeFile, os.Getenv("mvn"), cmds)
+	if err := GetDependenciesTree(dependenciesTreeFile, mvn.Command, cmds); err != nil {
+		return fmt.Errorf("get Maven dependencies tree: %w", err)
+	}
 
 	return nil
 }

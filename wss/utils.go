@@ -2,13 +2,25 @@ package wss
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
+
+const (
+	httpTimeout     = 30 * time.Second
+	pollTimeout     = 10 * time.Minute
+	pollInterval    = 5 * time.Second
+	maxResponseSize = 20 << 20
+)
+
+var apiHTTPClient = &http.Client{Timeout: httpTimeout}
 
 // GetJsonContentType 返回 JSON 內容類型及其值。
 //
@@ -26,17 +38,20 @@ func GetJsonContentType() (string, string) {
 //   - packagePath: 要掃描的套件路徑。
 //   - productName: 產品名稱。
 //   - withConf: 是否使用配置檔案 ("yes" 表示使用)。
-func DoWhitesourceScan(packagePath string, productName string, withConf string) {
+func DoWhitesourceScan(packagePath string, productName string, withConf string) error {
 	var wssEnv WhiteSourceEnv
 	projectName := &productName
 
-	wssEnv.ParserEnv(os.Getenv("settings_file"))
+	if err := wssEnv.ParserEnv(os.Getenv("settings_file")); err != nil {
+		return err
+	}
 	wssEnv.SetProductName(&productName)
 	wssEnv.SetProjectName(projectName)
 
-	wssEnv.SetEnv()
-	wssEnv.DoScan(packagePath, &productName, withConf)
-
+	if err := wssEnv.SetEnv(); err != nil {
+		return err
+	}
+	return wssEnv.DoScan(packagePath, &productName, withConf)
 }
 
 // GetFilePath 根據提供的路徑、專案名稱和檔案名稱構建完整的檔案路徑。
@@ -49,12 +64,25 @@ func DoWhitesourceScan(packagePath string, productName string, withConf string) 
 // 返回:
 //   - string: 完整的檔案路徑。
 func GetFilePath(path string, projectName string, fileName string) string {
-	return fmt.Sprintf(
-		"%s%s/%s",
-		path,
-		projectName,
-		fileName,
-	)
+	return filepath.Join(path, projectName, fileName)
+}
+
+func loadRequestData(projectName string) (UpdateRequestOriginal, UploadResponseData, error) {
+	var request UpdateRequestOriginal
+	var status UploadResponseStatus
+	var data UploadResponseData
+	requestFile := GetFilePath(os.Getenv("whitesource_path"), projectName, os.Getenv("request_file"))
+	statusFile := GetFilePath(os.Getenv("whitesource_path"), projectName, os.Getenv("response_status_file"))
+	if !request.FromFile(requestFile) {
+		return request, data, fmt.Errorf("load update request file %s", requestFile)
+	}
+	if !status.FromFile(statusFile) {
+		return request, data, fmt.Errorf("load upload response file %s", statusFile)
+	}
+	if err := json.Unmarshal([]byte(status.Data), &data); err != nil {
+		return request, data, fmt.Errorf("decode upload response data: %w", err)
+	}
+	return request, data, nil
 }
 
 // DoUploadRequest 執行 WhiteSource 的上傳請求流程。
@@ -77,12 +105,22 @@ func DoUploadRequest(projectName string) (string, error) {
 		projectName,
 		os.Getenv("request_file"),
 	)
-	updateRequestorigin := NewUpdateRequestFromFile(requestFile)
+	updateRequestorigin, err := NewUpdateRequestFromFile(requestFile)
+	if err != nil {
+		return "Failed to load upload request", err
+	}
 
-	resp, _ := updateRequestorigin.SendUploadRequest(
+	resp, err := updateRequestorigin.SendUploadRequest(
 		os.Getenv("whitesource_agent"),
 	)
-	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "Failed to send upload request", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "Upload request failed", fmt.Errorf("upload API returned %s", resp.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
 		return "Failed to parse response body", err
 	}
@@ -95,7 +133,9 @@ func DoUploadRequest(projectName string) (string, error) {
 		projectName,
 		os.Getenv("response_status_file"),
 	)
-	uploadResponseStatus.ToFile(responseStatusFile)
+	if !uploadResponseStatus.ToFile(responseStatusFile) {
+		return "Failed to write response status", fmt.Errorf("write response status file %s", responseStatusFile)
+	}
 	datas := []byte(uploadResponseStatus.Data)
 	err = json.Unmarshal(datas, &uploadResponseData)
 	if err != nil {
@@ -106,7 +146,9 @@ func DoUploadRequest(projectName string) (string, error) {
 		projectName,
 		os.Getenv("response_data_file"),
 	)
-	uploadResponseData.ToFile(responseDataFile)
+	if !uploadResponseData.ToFile(responseDataFile) {
+		return "Failed to write response data", fmt.Errorf("write response data file %s", responseDataFile)
+	}
 
 	return msg, err
 }
@@ -122,38 +164,33 @@ func DoUploadRequest(projectName string) (string, error) {
 //   - string: 異步處理的 UUID。
 func GenerateProjectReportAsync(projectName string) (error, string) {
 	var updateRequestOrigin UpdateRequestOriginal
-	var uploadResponseStatus UploadResponseStatus
 	var uploadResponseData UploadResponseData
 	var asyncProcessStatusRequest GenerateProjectReportAsyncRequest
 	var processStatusResponse ProcessStatusResponse
 
-	requestFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		projectName,
-		os.Getenv("request_file"),
-	)
-	responseStatusFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		projectName,
-		os.Getenv("response_status_file"),
-	)
-	updateRequestOrigin.FromFile(requestFile)
-	uploadResponseStatus.FromFile(responseStatusFile)
-	err := json.Unmarshal(
-		[]byte(uploadResponseStatus.Data),
-		&uploadResponseData,
-	)
+	updateRequestOrigin, uploadResponseData, err := loadRequestData(projectName)
 	if err != nil {
-		return fmt.Errorf("Failed to json unmarshal"), "''"
+		return err, ""
 	}
 
 	asyncProcessStatusRequest.InitRequest(updateRequestOrigin, uploadResponseData)
 	asyncProcessStatusRequest.Format = "json"
 
-	jsonData, _ := asyncProcessStatusRequest.GetJsonData()
+	jsonData, err := asyncProcessStatusRequest.GetJsonData()
+	if err != nil {
+		return fmt.Errorf("encode report request: %w", err), ""
+	}
 
-	_, body := AskProcessStatus(jsonData)
-	err = json.Unmarshal(body, &processStatusResponse)
+	err, body := AskProcessStatus(jsonData)
+	if err != nil {
+		return err, ""
+	}
+	if err = json.Unmarshal(body, &processStatusResponse); err != nil {
+		return fmt.Errorf("decode report response: %w", err), ""
+	}
+	if processStatusResponse.AsyncProcessStatus.Uuid == "" {
+		return fmt.Errorf("report response did not include an async process UUID"), ""
+	}
 	return nil, processStatusResponse.AsyncProcessStatus.Uuid
 }
 
@@ -166,25 +203,38 @@ func GenerateProjectReportAsync(projectName string) (error, string) {
 //   - error: 如果發送請求失敗，返回錯誤。
 //   - []byte: API 回應的主體內容。
 func AskProcessStatus(jsonData []byte) (error, []byte) {
+	ctx, cancel := context.WithTimeout(context.Background(), httpTimeout)
+	defer cancel()
+	return askProcessStatus(ctx, jsonData)
+}
 
+func askProcessStatus(ctx context.Context, jsonData []byte) (error, []byte) {
 	var rsp []byte = nil
-	req, _ := http.NewRequest(
+	req, err := http.NewRequestWithContext(ctx,
 		"POST",
 		os.Getenv("whitesource_api"),
 		bytes.NewBuffer(jsonData),
 	)
+	if err != nil {
+		return fmt.Errorf("create API request: %w", err), rsp
+	}
 	req.Header.Set(GetJsonContentType())
 	req.Header.Set("Charset", "utf-8")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := apiHTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("Failed to send request"), rsp
+		return fmt.Errorf("send API request: %w", err), rsp
 	}
 
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	return err, body
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+	if err != nil {
+		return fmt.Errorf("read API response: %w", err), rsp
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("API returned %s: %s", resp.Status, strings.TrimSpace(string(body))), body
+	}
+	return nil, body
 }
 
 // GetProcessStatus 輪詢異步處理狀態，直到狀態變為 "SUCCESS"。
@@ -196,44 +246,48 @@ func AskProcessStatus(jsonData []byte) (error, []byte) {
 //
 // 返回:
 //   - string: 處理完成後的回應狀態 (例如 "SUCCESS")。
-func GetProcessStatus(uuid string, projectName string) string {
+func GetProcessStatus(uuid string, projectName string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), pollTimeout)
+	defer cancel()
 	var updateRequestOrigin UpdateRequestOriginal
-	var uploadResponseStatus UploadResponseStatus
 	var uploadResponseData UploadResponseData
 	var asyncProcessStatusRequest AsyncProcessStatusRequest
 	var asyncProcessResponse ProcessStatusResponse
 
-	requestFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		projectName,
-		os.Getenv("request_file"),
-	)
-	responseStatusFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		projectName,
-		os.Getenv("response_status_file"),
-	)
-	updateRequestOrigin.FromFile(requestFile)
-	uploadResponseStatus.FromFile(responseStatusFile)
-	err := json.Unmarshal(
-		[]byte(uploadResponseStatus.Data),
-		&uploadResponseData,
-	)
+	updateRequestOrigin, uploadResponseData, err := loadRequestData(projectName)
 	if err != nil {
-		fmt.Println("Failed to json unmarshal")
+		return "", fmt.Errorf("decode upload response data: %w", err)
 	}
 	asyncProcessStatusRequest.InitRequest(updateRequestOrigin, uploadResponseData)
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
 	for {
 		asyncProcessStatusRequest.Uuid = uuid
 		asyncProcessStatusRequest.OrgToken = os.Getenv("WS_APIKEY")
-		jsonData, _ := asyncProcessStatusRequest.GetJsonData()
-		_, body := AskProcessStatus(jsonData)
-		json.Unmarshal(body, &asyncProcessResponse)
-
-		if asyncProcessResponse.AsyncProcessStatus.Status == "SUCCESS" {
-			return "SUCCESS" // 直接返回，優雅退出
+		jsonData, err := asyncProcessStatusRequest.GetJsonData()
+		if err != nil {
+			return "", fmt.Errorf("encode process status request: %w", err)
 		}
-		time.Sleep(5 * time.Second)
+		err, body := askProcessStatus(ctx, jsonData)
+		if err != nil {
+			return "", err
+		}
+		if err := json.Unmarshal(body, &asyncProcessResponse); err != nil {
+			return "", fmt.Errorf("decode process status response: %w", err)
+		}
+
+		status := strings.ToUpper(asyncProcessResponse.AsyncProcessStatus.Status)
+		switch status {
+		case "SUCCESS":
+			return status, nil
+		case "FAILURE", "FAILED", "ERROR", "CANCELLED", "CANCELED":
+			return status, fmt.Errorf("report generation ended with status %s", status)
+		}
+		select {
+		case <-ctx.Done():
+			return status, fmt.Errorf("waiting for report generation: %w", ctx.Err())
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -263,37 +317,27 @@ func GetPrettyString(str string) (string, error) {
 //
 // 返回:
 //   - string: 包含專案風險警報的 JSON 字串。
-func GetProjectRiskAlert(destination string) string {
+func GetProjectRiskAlert(destination string) (string, error) {
 	var updateRequestOrigin UpdateRequestOriginal
-	var uploadResponseStatus UploadResponseStatus
 	var uploadResponseData UploadResponseData
 	var projectAlertRequest ProjectInfoRequest
 
-	requestFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		destination,
-		os.Getenv("request_file"),
-	)
-	responseStatusFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		destination,
-		os.Getenv("response_status_file"),
-	)
-	updateRequestOrigin.FromFile(requestFile)
-	uploadResponseStatus.FromFile(responseStatusFile)
-	err := json.Unmarshal(
-		[]byte(uploadResponseStatus.Data),
-		&uploadResponseData,
-	)
+	updateRequestOrigin, uploadResponseData, err := loadRequestData(destination)
 	if err != nil {
-		fmt.Println("Failed to json unmarshal")
+		return "", fmt.Errorf("decode upload response data: %w", err)
 	}
 
 	projectAlertRequest.InitRequest(updateRequestOrigin, uploadResponseData)
-	jsonData, _ := projectAlertRequest.GetJsonData()
-	_, body := AskProcessStatus(jsonData)
+	jsonData, err := projectAlertRequest.GetJsonData()
+	if err != nil {
+		return "", fmt.Errorf("encode project alert request: %w", err)
+	}
+	err, body := AskProcessStatus(jsonData)
+	if err != nil {
+		return "", err
+	}
 
-	return string(body)
+	return string(body), nil
 }
 
 // GetProjectRiskReport 獲取並儲存專案的風險報告。
@@ -304,49 +348,25 @@ func GetProjectRiskAlert(destination string) string {
 //
 // 返回:
 //   - map[string]string: 包含操作狀態和狀態碼的映射。
-func GetProjectRiskReport(destination string) map[string]string {
+func GetProjectRiskReport(destination string) error {
 	var updateRequestOrigin UpdateRequestOriginal
-	var uploadResponseStatus UploadResponseStatus
 	var uploadResponseData UploadResponseData
 	var projectRiskRequest ProjectRiskRequest
 
-	requestFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		destination,
-		os.Getenv("request_file"),
-	)
-	responseStatusFile := GetFilePath(
-		os.Getenv("whitesource_path"),
-		destination,
-		os.Getenv("response_status_file"),
-	)
-	updateRequestOrigin.FromFile(requestFile)
-	uploadResponseStatus.FromFile(responseStatusFile)
-	err := json.Unmarshal(
-		[]byte(uploadResponseStatus.Data),
-		&uploadResponseData,
-	)
+	updateRequestOrigin, uploadResponseData, err := loadRequestData(destination)
 	if err != nil {
-		fmt.Println("Failed to json unmarshal")
+		return fmt.Errorf("decode upload response data: %w", err)
 	}
 
 	projectRiskRequest.InitRequest(updateRequestOrigin, uploadResponseData)
-	jsonData, _ := projectRiskRequest.GetJsonData()
-
-	req, _ := http.NewRequest(
-		"POST",
-		os.Getenv("whitesource_api"),
-		bytes.NewBuffer(jsonData),
-	)
-	req.Header.Set(GetJsonContentType())
-	req.Header.Set("Charset", "utf-8")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	jsonData, err := projectRiskRequest.GetJsonData()
 	if err != nil {
-		fmt.Println("Failed to send request")
+		return fmt.Errorf("encode project risk request: %w", err)
 	}
-	defer resp.Body.Close()
+	err, body := AskProcessStatus(jsonData)
+	if err != nil {
+		return err
+	}
 
 	dPath := fmt.Sprintf(
 		"%s/%s/%s",
@@ -354,23 +374,18 @@ func GetProjectRiskReport(destination string) map[string]string {
 		destination,
 		os.Getenv("risk_report_file"),
 	)
-	body, _ := io.ReadAll(resp.Body)
+	if err := os.MkdirAll(filepath.Dir(dPath), 0755); err != nil {
+		return fmt.Errorf("create risk report directory: %w", err)
+	}
 	err = os.WriteFile(
 		dPath,
 		body,
 		0644,
 	)
 	if err != nil {
-		return map[string]string{
-			"status": "failed",
-			"code":   "500",
-		}
+		return fmt.Errorf("write project risk report %s: %w", dPath, err)
 	}
-
-	return map[string]string{
-		"status": "successful",
-		"code":   "200",
-	}
+	return nil
 }
 
 // GetInventoryReport 獲取並解析庫存報告。
@@ -378,7 +393,7 @@ func GetProjectRiskReport(destination string) map[string]string {
 //
 // 返回:
 //   - InventoryReport: 解析後的庫存報告結構。
-func GetInventoryReport() InventoryReport {
+func GetInventoryReport() (InventoryReport, error) {
 	var updateRequestOrigin UpdateRequestOriginal
 	var uploadResponseStatus UploadResponseStatus
 	var uploadResponseData UploadResponseData
@@ -402,32 +417,23 @@ func GetInventoryReport() InventoryReport {
 		&uploadResponseData,
 	)
 	if err != nil {
-		fmt.Println("Failed to json unmarshal")
+		return inventoryReport, fmt.Errorf("decode upload response data: %w", err)
 	}
 
 	projectInventoryRequest.InitRequest(updateRequestOrigin, uploadResponseData)
-	jsonData, _ := projectInventoryRequest.GetJsonData()
-
-	req, _ := http.NewRequest(
-		"POST",
-		os.Getenv("whitesource_api"),
-		bytes.NewBuffer(jsonData),
-	)
-	req.Header.Set(GetJsonContentType())
-	req.Header.Set("Charset", "utf-8")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	jsonData, err := projectInventoryRequest.GetJsonData()
 	if err != nil {
-		fmt.Println("Failed to send request")
+		return inventoryReport, fmt.Errorf("encode inventory request: %w", err)
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	err, body := AskProcessStatus(jsonData)
+	if err != nil {
+		return inventoryReport, err
+	}
 
 	err = json.Unmarshal(body, &inventoryReport)
 	if err != nil {
-		fmt.Println("Failed to json unmarshal")
+		return inventoryReport, fmt.Errorf("decode inventory response: %w", err)
 	}
 
-	return inventoryReport
+	return inventoryReport, nil
 }

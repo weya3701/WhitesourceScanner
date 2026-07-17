@@ -33,17 +33,18 @@ func GetScanSingleton(taskId string) *sync.Mutex {
 //
 // 參數:
 //   - fpath: YAML 配置檔案的路徑。
-func (config *WhiteSourceEnv) ParserEnv(fpath string) {
+func (config *WhiteSourceEnv) ParserEnv(fpath string) error {
 
 	data, err := os.ReadFile(fpath)
 	if err != nil {
-		fmt.Printf("Read file failed: %s", err)
+		return fmt.Errorf("read settings file %s: %w", fpath, err)
 	}
 
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
-		fmt.Printf("Yaml unmarshal failed: %s", err)
+		return fmt.Errorf("decode settings file %s: %w", fpath, err)
 	}
+	return nil
 }
 
 // SetProjectName 設定 WhiteSourceEnv 實例的 ProjectName。
@@ -64,14 +65,18 @@ func (w *WhiteSourceEnv) SetProductName(productName *string) {
 
 // SetEnv 將 WhiteSourceEnv 結構中的值設定為環境變數。
 // 這些環境變數包括 WS_APIKEY, WS_USERKEY, WS_PROJECTNAME, WS_PRODUCTNAME, WS_PRODUCTTOKEN, WS_WSS_URL, WS_OFFLINE。
-func (w WhiteSourceEnv) SetEnv() {
-	os.Setenv("WS_APIKEY", w.ApiKey)
-	os.Setenv("WS_USERKEY", w.UserKey)
-	os.Setenv("WS_PROJECTNAME", w.ProjectName)
-	os.Setenv("WS_PRODUCTNAME", w.ProductName)
-	os.Setenv("WS_PRODUCTTOKEN", w.ProductToken)
-	os.Setenv("WS_WSS_URL", w.WSSUrl)
-	os.Setenv("WS_OFFLINE", w.Offline)
+func (w WhiteSourceEnv) SetEnv() error {
+	values := map[string]string{
+		"WS_APIKEY": w.ApiKey, "WS_USERKEY": w.UserKey, "WS_PROJECTNAME": w.ProjectName,
+		"WS_PRODUCTNAME": w.ProductName, "WS_PRODUCTTOKEN": w.ProductToken,
+		"WS_WSS_URL": w.WSSUrl, "WS_OFFLINE": w.Offline,
+	}
+	for key, value := range values {
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("set environment variable %s: %w", key, err)
+		}
+	}
+	return nil
 }
 
 // MoveRequestFile 將源檔案重新命名 (移動) 到目標路徑。
@@ -97,9 +102,12 @@ func MoveRequestFile(source string, destination string) error {
 // 參數:
 //   - base: 基礎路徑。
 //   - dirname: 要建立的目錄名稱。
-func CreateDirectory(base string, dirname string) {
-	dir := fmt.Sprintf("%s/%s", base, dirname)
-	os.Mkdir(dir, 0755)
+func CreateDirectory(base string, dirname string) error {
+	dir := filepath.Join(base, dirname)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("create directory %s: %w", dir, err)
+	}
+	return nil
 }
 
 // MendCli 結構體包含用於 Mend CLI 掃描的各種參數。
@@ -200,8 +208,8 @@ func getUnifiedAgent(filename string, prefix string, cmds []string) error {
 //
 // 參數:
 //   - cli: 包含掃描所需參數的 MendCli 結構實例。
-func DoDockerTarFileScan(cli MendCli) {
-	scanScope := fmt.Sprintf("\"%s//%s\"", cli.Application, cli.ProjectName)
+func DoDockerTarFileScan(cli MendCli) error {
+	scanScope := fmt.Sprintf("%s//%s", cli.Application, cli.ProjectName)
 	var dockerTarFile string
 	if cli.TarFile == "" {
 		dockerTarFile = fmt.Sprintf("./tmp/%s/%s.tar", cli.ProjectName, cli.ProjectName)
@@ -215,8 +223,12 @@ func DoDockerTarFileScan(cli MendCli) {
 
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
-	cmd.Run()
+	cmd.Stderr = &stdout
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("mend image scan failed: %w, output: %s", err, stdout.String())
+	}
 	fmt.Println(stdout.String())
+	return nil
 }
 
 // DoScan 執行 WhiteSource 掃描。
@@ -234,7 +246,9 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	var err error = nil
 
 	// initial unified agent
-	initialUnifiedAgent(os.Getenv("wssAgentPath"), os.Getenv("wssAgentName"))
+	if err := initialUnifiedAgent(os.Getenv("wssAgentPath"), os.Getenv("wssAgentName")); err != nil {
+		return err
+	}
 
 	mutex := GetScanSingleton(*projectName)
 	mutex.Lock()
@@ -255,11 +269,15 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	out, err := cmd.CombinedOutput()
 	fmt.Println(string(out))
 	if err != nil {
-		return fmt.Errorf("Scan failed.")
+		return fmt.Errorf("scan failed: %w, output: %s", err, string(out))
 	}
 
-	CreateDirectory("whitesource", w.ProjectName)
-	destinationFile := fmt.Sprintf("whitesource/%s/update-request.txt", w.ProjectName)
-	MoveRequestFile("whitesource/update-request.txt", destinationFile)
-	return err
+	if err := CreateDirectory("whitesource", w.ProjectName); err != nil {
+		return err
+	}
+	destinationFile := filepath.Join("whitesource", w.ProjectName, "update-request.txt")
+	if err := MoveRequestFile("whitesource/update-request.txt", destinationFile); err != nil {
+		return err
+	}
+	return nil
 }

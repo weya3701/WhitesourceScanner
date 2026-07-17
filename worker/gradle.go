@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -25,34 +27,13 @@ type ReplaceRule struct {
 // 返回:
 //   - string: Gradle 任務的字串模板。
 func getBuildTemplate() string {
-	return `task downloadDependencies(type: Copy) {
+	return `allprojects {
+	tasks.register("downloadDependencies", Copy) {
 		from configurations.runtimeClasspath
 		into "%s"
 	}
-	`
 }
-
-// appendToFile 將內容追加到指定的文件中。
-//
-// 參數：
-//   - filePath: 要追加內容的文件路徑。
-//   - content: 要追加到文件的字符串內容。
-//
-// 傳回值：
-//   - error: 如果開啟文件或寫入內容失敗，返回錯誤；否則返回 nil。
-func appendToFile(filePath string, content string) error {
-	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(content)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	`
 }
 
 // Download 是一個佔位符函式，用於從 Gradle 倉庫下載指定套件。
@@ -85,22 +66,41 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 	packageTmp := os.Getenv("package_tmp")
 	reportTmp := os.Getenv("report_tmp")
 	// tplFile := "./templates/build_tasks.gradle"
-	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
-	reportDestination := fmt.Sprintf("%s/%s", reportTmp, destination)
+	if packageTmp == "" || reportTmp == "" {
+		return fmt.Errorf("package_tmp and report_tmp must be configured")
+	}
+	downloadDestination, err := safeDestination(packageTmp, destination)
+	if err != nil {
+		return err
+	}
+	reportDestination, err := safeDestination(reportTmp, destination)
+	if err != nil {
+		return err
+	}
 	// replaceRules := []ReplaceRule{
 	// 	{Old: "<destPath>", New: downloadDestination},
 	// }
 
 	// tplContent, err := readFileContent(getBuildTemplate(), replaceRules)
-	tplContent := fmt.Sprintf(getBuildTemplate(), downloadDestination)
+	groovyDestination := strings.ReplaceAll(downloadDestination, `\`, `\\`)
+	groovyDestination = strings.ReplaceAll(groovyDestination, `"`, `\"`)
+	tplContent := fmt.Sprintf(getBuildTemplate(), groovyDestination)
 	// if err != nil {
 	// 	fmt.Println("Error reading tplFile:", err)
 	// 	return err
 	// }
-	err = appendToFile(requirementsFile, tplContent)
+	initScript, err := os.CreateTemp("", "wss-gradle-*.init.gradle")
 	if err != nil {
-		fmt.Println("Error appending to requirementsFile:", err)
-		return err
+		return fmt.Errorf("create Gradle init script: %w", err)
+	}
+	initScriptPath := initScript.Name()
+	defer os.Remove(initScriptPath)
+	if _, err := initScript.WriteString(tplContent); err != nil {
+		initScript.Close()
+		return fmt.Errorf("write Gradle init script: %w", err)
+	}
+	if err := initScript.Close(); err != nil {
+		return fmt.Errorf("close Gradle init script: %w", err)
 	}
 	if err := os.MkdirAll(downloadDestination, 0755); err != nil {
 		return fmt.Errorf("Create packages directory failed:%w", err)
@@ -113,16 +113,17 @@ func (gradle Gradle) SyncPackages(destination string, requirementsFile string) e
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cmdArgs := []string{"-p", "./", "downloadDependencies"}
+	projectDir := filepath.Dir(requirementsFile)
+	cmdArgs := []string{"--init-script", initScriptPath, "-p", projectDir, "downloadDependencies"}
 	cmd := exec.CommandContext(ctx, gradle.Command, cmdArgs...)
 	// cmd := exec.CommandContext(ctx, os.Getenv("gradle"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("gradle download failed: %w, output %s", err, string(out))
 	}
-	dependenciesTreeFile := fmt.Sprintf("%s/dependenciesTree.txt", reportDestination)
+	dependenciesTreeFile := filepath.Join(reportDestination, "dependenciesTree.txt")
 	fmt.Println("dependencies tree file: ", dependenciesTreeFile)
-	cmds := []string{"dependencies"}
+	cmds := []string{"-p", projectDir, "dependencies"}
 	err = GetDependenciesTree(dependenciesTreeFile, gradle.Command, cmds)
 
 	if err != nil {

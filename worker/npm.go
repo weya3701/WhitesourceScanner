@@ -2,9 +2,11 @@ package worker
 
 import (
 	"context"
-	"fmt" // Added log import
+	"fmt"
+	"io"
 	"os"
-	"os/exec" // Added strings import
+	"os/exec"
+	"path/filepath"
 	"time"
 )
 
@@ -46,8 +48,14 @@ func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 		return fmt.Errorf("package_tmp is empty")
 	}
 
-	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
-	reportDestination := fmt.Sprintf("%s/%s", reportTmp, destination)
+	downloadDestination, err := safeDestination(packageTmp, destination)
+	if err != nil {
+		return err
+	}
+	reportDestination, err := safeDestination(reportTmp, destination)
+	if err != nil {
+		return err
+	}
 	if err = os.MkdirAll(downloadDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}
@@ -55,16 +63,26 @@ func (npm Npm) SyncPackages(destination string, requirementsFile string) error {
 	if err = os.MkdirAll(reportDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}
-	copyCmd := []string{requirementsFile, downloadDestination}
-	cpcmd := exec.Command("cp", copyCmd...)
-	cpout, err := cpcmd.CombinedOutput()
+	source, err := os.Open(requirementsFile)
 	if err != nil {
-		return fmt.Errorf("Copy package.json failed: %w, output: %s", err, string(cpout))
+		return fmt.Errorf("open package file: %w", err)
+	}
+	defer source.Close()
+	target, err := os.Create(filepath.Join(downloadDestination, filepath.Base(requirementsFile)))
+	if err != nil {
+		return fmt.Errorf("create package file copy: %w", err)
+	}
+	if _, err := io.Copy(target, source); err != nil {
+		target.Close()
+		return fmt.Errorf("copy package file: %w", err)
+	}
+	if err := target.Close(); err != nil {
+		return fmt.Errorf("close package file copy: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	cmdArgs := []string{"install", "-prefix", downloadDestination}
+	cmdArgs := []string{"install", "--prefix", downloadDestination}
 	cmd := exec.CommandContext(ctx, npm.Command, cmdArgs...)
 	// cmd := exec.CommandContext(ctx, os.Getenv("npm"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
