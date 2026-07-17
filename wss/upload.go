@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 )
 
 // NewUpdateRequestFromFile 從指定檔案路徑讀取並解析 UpdateRequestOriginal 結構。
@@ -19,14 +20,17 @@ import (
 //
 // 返回:
 //   - UpdateRequestOriginal: 解析後的 UpdateRequestOriginal 結構實例。
-func NewUpdateRequestFromFile(filepath string) UpdateRequestOriginal {
+func NewUpdateRequestFromFile(filepath string) (UpdateRequestOriginal, error) {
 	var updateRequestOrigin UpdateRequestOriginal
 	data, err := os.ReadFile(filepath)
+	if err != nil {
+		return updateRequestOrigin, fmt.Errorf("read update request %s: %w", filepath, err)
+	}
 	err = json.Unmarshal(data, &updateRequestOrigin)
 	if err != nil {
-		log.Printf("Json Unmarshal failed: %s", err)
+		return updateRequestOrigin, fmt.Errorf("decode update request %s: %w", filepath, err)
 	}
-	return updateRequestOrigin
+	return updateRequestOrigin, nil
 }
 
 // GetValues 將 UpdateRequestOriginal 結構轉換為 url.Values 格式。
@@ -87,9 +91,13 @@ func (u UpdateRequestOriginal) SendUploadRequest(wssurl string) (resp *http.Resp
 
 	vals := u.GetValues()
 	req, err := http.NewRequest("POST", wssurl, bytes.NewBuffer([]byte(vals.Encode())))
+	if err != nil {
+		return nil, fmt.Errorf("create upload request: %w", err)
+	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
 	req.Header.Add("Accept-Charset", "utf-8")
-	res, err := http.DefaultClient.Do(req)
+	client := &http.Client{Timeout: 30 * time.Second}
+	res, err := client.Do(req)
 	return res, err
 }
 
@@ -168,9 +176,9 @@ func (ud UploadResponseData) GetJson() []byte {
 func (us UploadResponseStatus) ToFile(destination string) bool {
 	var status bool = true
 
-	file, err := os.OpenFile(destination, os.O_RDWR|os.O_CREATE, os.FileMode(0644))
+	file, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(0644))
 	if err != nil {
-		status = false
+		return false
 	}
 
 	defer file.Close()
@@ -201,10 +209,10 @@ func (us UploadResponseStatus) ToFile(destination string) bool {
 func (ud UploadResponseData) ToFile(destination string) bool {
 	var status bool = true
 
-	file, err := os.OpenFile(destination, os.O_RDWR|os.O_CREATE, os.FileMode(0644))
+	file, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(0644))
 
 	if err != nil {
-		status = false
+		return false
 	}
 	defer file.Close()
 

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"time"
@@ -46,25 +46,29 @@ func SyncDefinitionPackages(packageType string, projectName string, requirements
 // GetPackageReport 執行 WhiteSource 掃描，上傳請求，生成專案報告並獲取處理狀態，
 // 最後取得專案風險報告。
 func GetPackageReport(packageName string, projectName string, withConf string) (bool, error) {
-	var status bool = true
-	var err error = nil
+	if err := wss.DoWhitesourceScan(packageName, projectName, withConf); err != nil {
+		return false, err
+	}
+	if _, err := wss.DoUploadRequest(projectName); err != nil {
+		return false, err
+	}
 
-	wss.DoWhitesourceScan(packageName, projectName, withConf)
-	wss.DoUploadRequest(projectName)
-
-	_, ch := wss.GenerateProjectReportAsync(projectName)
-	_ = wss.GetProcessStatus(ch, projectName)
+	err, processID := wss.GenerateProjectReportAsync(projectName)
+	if err != nil {
+		return false, err
+	}
+	if _, err := wss.GetProcessStatus(processID, projectName); err != nil {
+		return false, err
+	}
 
 	reportPath := fmt.Sprintf("report/%s", projectName)
-	os.Mkdir(reportPath, 0755)
-	rsp := wss.GetProjectRiskReport(projectName)
-	_, err = json.Marshal(rsp)
-	if err != nil {
-		log.Printf("Failed to json marshal %s", err)
-		status = false
-		return status, err
+	if err := os.MkdirAll(reportPath, 0755); err != nil {
+		return false, fmt.Errorf("create report directory: %w", err)
 	}
-	return status, err
+	if err := wss.GetProjectRiskReport(projectName); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func GetInventoryReport(projectName, packageType string) (bool, error) {
@@ -91,23 +95,22 @@ func GetInventoryReport(projectName, packageType string) (bool, error) {
 	output := fmt.Sprintf("%s/%s/inventory.csv", os.Getenv("report_tmp"), projectName)
 
 	// 檢查源文件是否存在
-	if _, err := os.Stat(source); os.IsNotExist(err) {
-		log.Printf("源文件不存在: %s", source)
-		return false, nil // 檔案不存在，不應視為致命錯誤，但操作失敗
+	if _, err := os.Stat(source); err != nil {
+		return false, fmt.Errorf("無法讀取源文件 %s: %w", source, err)
 	}
 
-	shellCommand := fmt.Sprintf("./utils/%s %s %s", shellScript, source, output)
-	cmd := exec.Command("bash", "-c", shellCommand)
+	scriptPath := fmt.Sprintf("./utils/%s", shellScript)
+	cmd := exec.Command(scriptPath, source, output)
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 	err = cmd.Run()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
-			log.Printf("命令執行失敗，狀態碼: %d, 輸出: %s, 錯誤: %s", exitErr.ExitCode(), stdoutBuf.String(), stderrBuf.String())
+			slog.Error("inventory conversion failed", "exit_code", exitErr.ExitCode(), "stdout", stdoutBuf.String(), "stderr", stderrBuf.String())
 			status = false
 		} else {
-			log.Fatalf("命令執行時發生錯誤: %v, 輸出: %s, 錯誤: %s", err, stdoutBuf.String(), stderrBuf.String())
+			slog.Error("inventory conversion could not start", "error", err, "stdout", stdoutBuf.String(), "stderr", stderrBuf.String())
 			status = false
 		}
 	}
@@ -118,16 +121,20 @@ func GetInventoryReport(projectName, packageType string) (bool, error) {
 func GetProjectAlert(projectName string) (bool, error) {
 	var status bool = true
 	var err error = nil
-	rsp := wss.GetProjectRiskAlert(projectName)
-	rsp, _ = wss.GetPrettyString(rsp)
-
-	var projectScanInfo wss.ProjectScanInfo
-
-	_ = json.Unmarshal([]byte(rsp), &projectScanInfo)
+	rsp, err := wss.GetProjectRiskAlert(projectName)
+	if err != nil {
+		return false, err
+	}
+	rsp, err = wss.GetPrettyString(rsp)
+	if err != nil {
+		return false, fmt.Errorf("format project alert: %w", err)
+	}
 
 	reportPath := fmt.Sprintf("report/%s", projectName)
 	reportFile := fmt.Sprintf("%s", reportPath+"/alert.json")
-	os.Mkdir(reportPath, 0755)
+	if err := os.MkdirAll(reportPath, 0755); err != nil {
+		return false, fmt.Errorf("create report directory: %w", err)
+	}
 	err = os.WriteFile(reportFile, []byte(rsp), 0644)
 	if err != nil {
 		status = false
@@ -157,18 +164,29 @@ func UpdateRiskReport(projectName string) error {
 
 	var ipdf pdft.PDFt
 
-	rsp := wss.GetProjectRiskAlert(projectName)
-	rsp, _ = wss.GetPrettyString(rsp)
+	rsp, err := wss.GetProjectRiskAlert(projectName)
+	if err != nil {
+		return err
+	}
+	rsp, err = wss.GetPrettyString(rsp)
+	if err != nil {
+		return err
+	}
 
 	var projectScanInfo wss.ProjectScanInfo
-	_ = json.Unmarshal([]byte(rsp), &projectScanInfo)
+	if err := json.Unmarshal([]byte(rsp), &projectScanInfo); err != nil {
+		return err
+	}
 
 	// FIXME. 變更時間為utf+8 -- Start
 	layout := "2006-01-02 15:04:05"
 	secondsInHour := 60 * 60
 	loc := time.FixedZone("CST", 8*secondsInHour)
 
-	t, _ := time.ParseInLocation(layout, projectScanInfo.ProjectVitals.LastUpdatedDate, time.UTC)
+	t, err := time.ParseInLocation(layout, projectScanInfo.ProjectVitals.LastUpdatedDate, time.UTC)
+	if err != nil {
+		return err
+	}
 
 	tInUTC8 := t.In(loc)
 	timeStr := tInUTC8.Format(layout)
@@ -183,7 +201,7 @@ func UpdateRiskReport(projectName string) error {
 		projectName,
 		os.Getenv("risk_report_file"),
 	)
-	err := ipdf.Open(reportFile)
+	err = ipdf.Open(reportFile)
 	if err != nil {
 		return fmt.Errorf("PDF not found %w", err)
 	}

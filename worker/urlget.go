@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
@@ -47,13 +48,14 @@ func readURLsFromFile(filePath string) ([]string, error) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 
 		if line == "" {
 			continue
 		}
 
-		if len(line) >= 4 && (line[:4] == "http" || line[:5] == "https") {
+		parsed, parseErr := url.ParseRequestURI(line)
+		if parseErr == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != "" {
 			urls = append(urls, line)
 		} else {
 			log.Printf("警告: 忽略無效的URL: %s\n", line)
@@ -103,13 +105,25 @@ func (ug UrlGet) SyncPackages(destination string, requirementsFile string) error
 	var downloadTasks []DownloadTask
 	packageTmp := os.Getenv("package_tmp")
 	reportTmp := os.Getenv("report_tmp")
-	downloadDestination := fmt.Sprintf("%s/%s", packageTmp, destination)
-	reportDestination := fmt.Sprintf("%s/%s", reportTmp, destination)
+	if packageTmp == "" || reportTmp == "" {
+		return fmt.Errorf("package_tmp and report_tmp must be configured")
+	}
+	downloadDestination, err := safeDestination(packageTmp, destination)
+	if err != nil {
+		return err
+	}
+	reportDestination, err := safeDestination(reportTmp, destination)
+	if err != nil {
+		return err
+	}
 
 	if err = os.MkdirAll(reportDestination, 0755); err != nil {
 		return fmt.Errorf("Create Dir failed: %w", err)
 	}
-	urls, _ := readURLsFromFile(requirementsFile)
+	urls, err := readURLsFromFile(requirementsFile)
+	if err != nil {
+		return err
+	}
 
 	for _, url := range urls {
 		downloadTask := DownloadTask{
@@ -122,7 +136,10 @@ func (ug UrlGet) SyncPackages(destination string, requirementsFile string) error
 	}
 
 	concurrencyStr := os.Getenv("concurrency")
-	concurrencyInt, _ := strconv.Atoi(concurrencyStr)
+	concurrencyInt, err := strconv.Atoi(concurrencyStr)
+	if err != nil || concurrencyInt < 1 {
+		return fmt.Errorf("concurrency must be a positive integer")
+	}
 	err = ParallelDownload(downloadTasks, concurrencyInt)
 
 	return err
@@ -185,6 +202,9 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 // 返回:
 //   - error: 如果任何下載任務失敗，返回第一個遇到的錯誤；否則返回 nil。
 func ParallelDownload(tasks []DownloadTask, maxConcurrency int) error {
+	if maxConcurrency < 1 {
+		return fmt.Errorf("maxConcurrency must be positive")
+	}
 	var wg sync.WaitGroup
 	errChan := make(chan error, len(tasks))
 	sem := make(chan struct{}, maxConcurrency) // Semaphore to limit concurrency
@@ -209,6 +229,5 @@ func ParallelDownload(tasks []DownloadTask, maxConcurrency int) error {
 			return err
 		}
 	}
-	fmt.Println("test")
 	return nil
 }
