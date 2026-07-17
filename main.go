@@ -111,16 +111,6 @@ func run() error {
 					return handler.GetProjectAlert(*projectName)
 				},
 			},
-			// {
-			// 	Name: "更新風險報告",
-			// 	Func: func() (bool, error) {
-			// 		err := handler.UpdateRiskReport(*projectName)
-			// 		if err != nil {
-			// 			return false, err
-			// 		}
-			// 		return true, nil
-			// 	},
-			// },
 			{
 				Name: "取得庫存報告",
 				Func: func() (bool, error) {
@@ -143,16 +133,6 @@ func run() error {
 					return handler.GetProjectAlert(*projectName)
 				},
 			},
-			// {
-			// 	Name: "更新風險報告",
-			// 	Func: func() (bool, error) {
-			// 		err := handler.UpdateRiskReport(*projectName)
-			// 		if err != nil {
-			// 			return false, err
-			// 		}
-			// 		return true, nil
-			// 	},
-			// },
 			{
 				Name: "取得庫存報告",
 				Func: func() (bool, error) {
