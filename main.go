@@ -34,8 +34,8 @@ func main() {
 			{
 				Name: "同步定義套件",
 				Func: func() (bool, error) {
-					handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
-					return true, nil
+					err = handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
+					return true, err
 				},
 			},
 			{
@@ -130,6 +130,29 @@ func main() {
 						*imageTag,
 					)
 					wss.DoDockerTarFileScan(mendCli)
+					return true, nil
+				},
+			},
+		}
+
+		runner := NewBatchRunner(tasks)
+		if success, runErr := runner.Run(); !success {
+			fmt.Printf("批次執行失敗: %v\n", runErr)
+		} else {
+			fmt.Println("批次執行成功完成！")
+		}
+	}
+
+	// FIXME. Need to implement
+	if *mode == "publish" {
+		// 讀取Artifact Repository連線資訊
+		//
+		//
+		tasks := []BatchTask{
+			{
+				Name: "執行發佈套件至Artifact Repository",
+				Func: func() (bool, error) {
+					handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
 					return true, nil
 				},
 			},

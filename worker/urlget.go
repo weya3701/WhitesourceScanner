@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"wss/repositoryclient"
 )
 
 // UrlGet 結構體用於處理從 URL 獲取檔案的操作。
@@ -85,8 +86,7 @@ func (dt *DownloadTask) setFilename() {
 // Download 是一個佔位符函式，用於從 URL 下載指定套件。
 // 目前未實作具體功能。
 func (ug UrlGet) Download(destination string, packageName string, indexUrl string) string {
-	var cmd string
-	return string(cmd)
+	return "" // 返回空字串，與其他 Download 佔位符保持一致
 }
 
 // SyncPackages 根據 requirements 檔案中的 URL 列表並行下載套件。
@@ -124,7 +124,7 @@ func (ug UrlGet) SyncPackages(destination string, requirementsFile string) error
 
 	concurrencyStr := os.Getenv("concurrency")
 	concurrencyInt, _ := strconv.Atoi(concurrencyStr)
-	ParallelDownload(downloadTasks, concurrencyInt)
+	err = ParallelDownload(downloadTasks, concurrencyInt)
 
 	return err
 }
@@ -137,12 +137,16 @@ func (ug UrlGet) Sync(targetUrl string, packageFile string) string {
 
 }
 
+// Publish 是一個佔位符函式，用於將套件發佈到儲存庫。
+// UrlGet 主要是用於下載，不提供發佈功能。
+func (ug UrlGet) Publish(conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
+	return fmt.Errorf("UrlGet does not support package publishing")
+}
+
 // Remove 是一個佔位符函式，用於刪除指定套件名稱對應的臨時目錄。
 // 目前未實作具體功能。
 func (ug UrlGet) Remove(packageName string) error {
-	var err error
-	return err
-
+	return fmt.Errorf("UrlGet Remove method not implemented") // 明確返回未實現錯誤
 }
 
 // DownloadFile 執行單個下載任務。
@@ -164,12 +168,15 @@ func DownloadFile(task DownloadTask, wg *sync.WaitGroup, errChan chan error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	dest := fmt.Sprintf("%s/%s", task.DownloadDestination, task.Filename)
-	cmdArgs := []string{task.URL, "-o", dest}
+	dest := fmt.Sprintf("%s", task.DownloadDestination)
+	// dest := fmt.Sprintf("%s/%s", task.DownloadDestination, task.Filename)
+	cmdArgs := []string{"--directory-prefix", dest, task.URL}
+	// cmdArgs := []string{task.URL, "-o", dest}
 	cmd := exec.CommandContext(ctx, task.Command, cmdArgs...)
 	fmt.Println(cmd)
 	// cmd := exec.CommandContext(ctx, os.Getenv("wget"), cmdArgs...)
 	out, err := cmd.CombinedOutput()
+	fmt.Println("cmdArgs: ", cmdArgs, "out: ", string(out), "error: ", err)
 	if err != nil {
 		errChan <- fmt.Errorf("curl download failed: %w, output: %s", err, string(out))
 	}

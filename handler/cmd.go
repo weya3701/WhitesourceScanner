@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"time"
+	"wss/repositoryclient"
 	"wss/worker"
 	"wss/wss"
 
@@ -19,9 +20,8 @@ import (
 func initialPackageDefintion(packageType string) worker.Worker {
 
 	switch packageType {
-	case "python":
-
-		return worker.Pypi{}
+	case "pip":
+		return worker.Pypi{Command: os.Getenv("pip")}
 	case "maven":
 		return worker.Mvn{Command: os.Getenv("maven")}
 	case "npm":
@@ -31,16 +31,23 @@ func initialPackageDefintion(packageType string) worker.Worker {
 	case "wget":
 		return worker.UrlGet{Command: os.Getenv("wget")}
 	default:
-		return worker.Pypi{Command: os.Getenv("pypi")}
+		return worker.Pypi{Command: os.Getenv("pip")}
 	}
 
 }
 
+// PublishPackage 根據 packageType 將位於 packageDirPath 的套件發佈到已配置的儲存庫。
+// 它會根據 packageType 選擇合適的 worker 進行套件發佈。
+func PublishPackage(packageType string, conn *repositoryclient.RepositoryConnection, packageDirPath string) error {
+	wk := worker.NewRepositoryWorker(initialPackageDefintion(packageType))
+	return wk.Publish(conn, packageDirPath)
+}
+
 // SyncDefintionPackages 同步定義檔中的套件。
 // 它會根據 packageType 選擇合適的 worker 進行套件同步。
-func SyncDefinitionPackages(packageType string, projectName string, requirementsFile string) {
+func SyncDefinitionPackages(packageType string, projectName string, requirementsFile string) error {
 	var wk worker.WorkerHandler = worker.NewRepositoryWorker(initialPackageDefintion(packageType))
-	wk.SyncPackagesFromDefintionFile(projectName, requirementsFile)
+	return wk.SyncPackagesFromDefintionFile(projectName, requirementsFile)
 
 }
 
