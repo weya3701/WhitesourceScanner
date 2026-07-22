@@ -45,8 +45,8 @@ func SyncDefinitionPackages(packageType string, projectName string, requirements
 
 // GetPackageReport 執行 WhiteSource 掃描，上傳請求，生成專案報告並獲取處理狀態，
 // 最後取得專案風險報告。
-func GetPackageReport(packageName string, projectName string, withConf string) (bool, error) {
-	if err := wss.DoWhitesourceScan(packageName, projectName, withConf); err != nil {
+func GetPackageReport(packageName string, projectName string, withConf string, directScanSource bool) (bool, error) {
+	if err := wss.DoWhitesourceScan(packageName, projectName, withConf, directScanSource); err != nil {
 		return false, err
 	}
 	if _, err := wss.DoUploadRequest(projectName); err != nil {

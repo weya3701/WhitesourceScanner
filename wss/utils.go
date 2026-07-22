@@ -38,7 +38,7 @@ func GetJsonContentType() (string, string) {
 //   - packagePath: 要掃描的套件路徑。
 //   - productName: 產品名稱。
 //   - withConf: 是否使用配置檔案 ("yes" 表示使用)。
-func DoWhitesourceScan(packagePath string, productName string, withConf string) error {
+func DoWhitesourceScan(packagePath string, productName string, withConf string, directScanSource bool) error {
 	var wssEnv WhiteSourceEnv
 	projectName := &productName
 
@@ -51,7 +51,7 @@ func DoWhitesourceScan(packagePath string, productName string, withConf string) 
 	if err := wssEnv.SetEnv(); err != nil {
 		return err
 	}
-	return wssEnv.DoScan(packagePath, &productName, withConf)
+	return wssEnv.DoScan(packagePath, &productName, withConf, directScanSource)
 }
 
 // GetFilePath 根據提供的路徑、專案名稱和檔案名稱構建完整的檔案路徑。

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"wss/handler"
 	"wss/wss"
@@ -63,6 +64,7 @@ func run() error {
 	mode := flag.String("mode", "", "App Mode")
 	packageName := flag.String("package_name", "", "Package Name")
 	projectName := flag.String("project_name", "", "Project Name")
+	scanSource := flag.String("scan_source", "", "Scan source path (cmd mode only)")
 	withConf := flag.String("with_conf", "", "With Config")
 	exportFile := flag.String("export_file", "", "Export File")
 	application := flag.String("application", "", "Application")
@@ -77,8 +79,16 @@ func run() error {
 		fmt.Println("Failed to load environ")
 	}
 
-	if err := validateArguments(*mode, *packageName, *projectName, *application, *packageType, *requirementsFile); err != nil {
+	if err := validateArguments(*mode, *packageName, *projectName, *scanSource, *application, *packageType, *requirementsFile); err != nil {
 		return err
+	}
+	effectivePackageName := *packageName
+	effectiveProjectName := *projectName
+	directScanSource := false
+	if *mode == "cmd" && strings.TrimSpace(*scanSource) != "" {
+		effectivePackageName = filepath.Clean(*scanSource)
+		effectiveProjectName = filepath.Base(effectivePackageName)
+		directScanSource = true
 	}
 	config, err := wss.LoadRuntimeConfig()
 	if err != nil {
@@ -95,26 +105,26 @@ func run() error {
 			{
 				Name: "同步定義套件",
 				Func: func() (bool, error) {
-					err := handler.SyncDefinitionPackages(*packageType, *projectName, *requirementsFile)
+					err := handler.SyncDefinitionPackages(*packageType, effectiveProjectName, *requirementsFile)
 					return err == nil, err
 				},
 			},
 			{
 				Name: "取得套件報告",
 				Func: func() (bool, error) {
-					return handler.GetPackageReport(*packageName, *projectName, *withConf)
+					return handler.GetPackageReport(effectivePackageName, effectiveProjectName, *withConf, false)
 				},
 			},
 			{
 				Name: "取得專案警報",
 				Func: func() (bool, error) {
-					return handler.GetProjectAlert(*projectName)
+					return handler.GetProjectAlert(effectiveProjectName)
 				},
 			},
 			{
 				Name: "取得庫存報告",
 				Func: func() (bool, error) {
-					return handler.GetInventoryReport(*projectName, *packageType)
+					return handler.GetInventoryReport(effectiveProjectName, *packageType)
 				},
 			},
 		}
@@ -124,19 +134,19 @@ func run() error {
 			{
 				Name: "取得套件報告",
 				Func: func() (bool, error) {
-					return handler.GetPackageReport(*packageName, *projectName, *withConf)
+					return handler.GetPackageReport(effectivePackageName, effectiveProjectName, *withConf, directScanSource)
 				},
 			},
 			{
 				Name: "取得專案警報",
 				Func: func() (bool, error) {
-					return handler.GetProjectAlert(*projectName)
+					return handler.GetProjectAlert(effectiveProjectName)
 				},
 			},
 			{
 				Name: "取得庫存報告",
 				Func: func() (bool, error) {
-					return handler.GetInventoryReport(*projectName, *packageType)
+					return handler.GetInventoryReport(effectiveProjectName, *packageType)
 				},
 			},
 		}
@@ -169,9 +179,27 @@ func run() error {
 	return nil
 }
 
-func validateArguments(mode, packageName, projectName, application, packageType, requirementsFile string) error {
+func validateArguments(mode, packageName, projectName, scanSource, application, packageType, requirementsFile string) error {
 	if mode != "cmd" && mode != "reqfile" && mode != "image" {
 		return fmt.Errorf("mode 必須是 cmd、reqfile 或 image")
+	}
+	if scanSource != "" {
+		if mode != "cmd" {
+			return fmt.Errorf("scan_source 僅適用於 cmd 模式")
+		}
+		cleanSource := filepath.Clean(scanSource)
+		sourceName := filepath.Base(cleanSource)
+		if sourceName == "." || sourceName == string(filepath.Separator) {
+			return fmt.Errorf("scan_source 必須包含可作為專案名稱的目錄名稱")
+		}
+		info, err := os.Stat(cleanSource)
+		if err != nil {
+			return fmt.Errorf("無法讀取 scan_source: %w", err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("scan_source 必須是目錄")
+		}
+		return nil
 	}
 	if projectName == "" {
 		return fmt.Errorf("project_name 為必填")

@@ -8,9 +8,9 @@ import (
 
 func TestValidateArguments(t *testing.T) {
 	tests := []struct {
-		name                                                                       string
-		mode, packageName, projectName, application, packageType, requirementsFile string
-		wantErr                                                                    bool
+		name                                                                                   string
+		mode, packageName, projectName, scanSource, application, packageType, requirementsFile string
+		wantErr                                                                                bool
 	}{
 		{name: "cmd", mode: "cmd", packageName: "pkg", projectName: "project"},
 		{name: "image", mode: "image", projectName: "project", application: "app"},
@@ -20,7 +20,7 @@ func TestValidateArguments(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateArguments(tt.mode, tt.packageName, tt.projectName, tt.application, tt.packageType, tt.requirementsFile)
+			err := validateArguments(tt.mode, tt.packageName, tt.projectName, tt.scanSource, tt.application, tt.packageType, tt.requirementsFile)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("validateArguments() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -33,8 +33,22 @@ func TestValidateArgumentsReqfile(t *testing.T) {
 	if err := os.WriteFile(file, []byte("example==1.0\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateArguments("reqfile", "pkg", "project", "", "pip", file); err != nil {
+	if err := validateArguments("reqfile", "pkg", "project", "", "", "pip", file); err != nil {
 		t.Fatalf("valid reqfile arguments rejected: %v", err)
+	}
+}
+
+func TestValidateArgumentsCmdScanSource(t *testing.T) {
+	source := t.TempDir()
+	if err := validateArguments("cmd", "", "", source, "", "", ""); err != nil {
+		t.Fatalf("valid scan_source rejected: %v", err)
+	}
+	file := filepath.Join(source, "file.txt")
+	if err := os.WriteFile(file, []byte("test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateArguments("cmd", "", "", file, "", "", ""); err == nil {
+		t.Fatal("file scan_source accepted, want error")
 	}
 }
 

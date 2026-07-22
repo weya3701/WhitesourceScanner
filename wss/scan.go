@@ -242,7 +242,7 @@ func DoDockerTarFileScan(cli MendCli) error {
 //
 // 返回:
 //   - error: 如果掃描失敗或檔案操作失敗，返回錯誤；否則返回 nil。
-func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf string) error {
+func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf string, directScanSource bool) error {
 	var err error = nil
 
 	// initial unified agent
@@ -253,7 +253,10 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	mutex := GetScanSingleton(*projectName)
 	mutex.Lock()
 	defer mutex.Unlock()
-	scanPath := fmt.Sprintf("%s/%s", os.Getenv("package_tmp"), packagePath)
+	scanPath := filepath.Join(os.Getenv("package_tmp"), packagePath)
+	if directScanSource {
+		scanPath = packagePath
+	}
 
 	ua := fmt.Sprintf("%s%s", os.Getenv("wssAgentPath"), os.Getenv("wssAgentName"))
 	cmdArgs := []string{"java", "-jar", ua, "-d", scanPath}
