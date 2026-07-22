@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,11 @@ import (
 
 // scanMutexMap 用於儲存每個 taskId 關聯的互斥鎖，以確保掃描操作的執行順序。
 var scanMutexMap sync.Map
+
+var defaultWhiteSourceEnv = WhiteSourceEnv{
+	WSSUrl:  "https://saas.whitesourcesoftware.com/agent",
+	Offline: "true",
+}
 
 // GetScanSingleton 根據 taskId 獲取一個單例互斥鎖。
 // 如果該 taskId 尚無互斥鎖，則會創建一個並儲存。
@@ -37,6 +43,26 @@ func (config *WhiteSourceEnv) ParserEnv(fpath string) error {
 
 	data, err := os.ReadFile(fpath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			*config = defaultWhiteSourceEnv
+			config.ApiKey = os.Getenv("MEND_API_KEY")
+			config.UserKey = os.Getenv("MEND_USER_KEY")
+			config.ProductToken = os.Getenv("MEND_PRODUCT_TOKEN")
+			missing := make([]string, 0, 3)
+			if config.ApiKey == "" {
+				missing = append(missing, "MEND_API_KEY")
+			}
+			if config.UserKey == "" {
+				missing = append(missing, "MEND_USER_KEY")
+			}
+			if config.ProductToken == "" {
+				missing = append(missing, "MEND_PRODUCT_TOKEN")
+			}
+			if len(missing) > 0 {
+				return fmt.Errorf("settings file %s not found and required environment variables are missing: %s", fpath, strings.Join(missing, ", "))
+			}
+			return nil
+		}
 		return fmt.Errorf("read settings file %s: %w", fpath, err)
 	}
 

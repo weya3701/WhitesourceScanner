@@ -5,7 +5,53 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
+
+var defaultEnvironment = map[string]string{
+	"settings_file":        "./config/conf.yaml",
+	"whitesource_path":     "./whitesource/",
+	"request_file":         "update-request.txt",
+	"response_status_file": "update-response.txt",
+	"response_data_file":   "update-response-data.txt",
+	"whitesource_api":      "https://saas.whitesourcesoftware.com/api/v1.4",
+	"whitesource_agent":    "https://saas.whitesourcesoftware.com/agent",
+	"agentURL":             "https://unified-agent.s3.amazonaws.com/wss-unified-agent.jar",
+	"wssAgentPath":         "./agent/",
+	"wssAgentName":         "wss-unified-agent.jar",
+	"risk_report_file":     "risk.pdf",
+	"package_tmp":          "./tmp",
+	"report_tmp":           "./report",
+	"package_sync":         "./sync_tmp",
+	"gradle":               "/opt/homebrew/bin/gradle",
+	"npm":                  "/opt/homebrew/bin/npm",
+	"mvn":                  "/opt/homebrew/bin/mvn",
+	"pip":                  "/Users/ccxn/ccxnEnv/bin/pip",
+	"wget":                 "wget",
+	"concurrency":          "40",
+}
+
+// LoadEnvironment loads the configured environment file. When the file does
+// not exist, the values from the repository's current .env are used as defaults.
+// Existing process environment variables are never overwritten.
+func LoadEnvironment(path string) error {
+	if err := godotenv.Load(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("load environment file %s: %w", path, err)
+	}
+
+	for key, value := range defaultEnvironment {
+		if _, exists := os.LookupEnv(key); exists {
+			continue
+		}
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("set default environment variable %s: %w", key, err)
+		}
+	}
+	return nil
+}
 
 // RuntimeConfig centralizes process-level configuration read from the environment.
 type RuntimeConfig struct {
