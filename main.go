@@ -9,8 +9,6 @@ import (
 	"strings"
 	"wss/handler"
 	"wss/wss"
-
-	"github.com/joho/godotenv"
 )
 
 type BatchFunc func() (bool, error)
@@ -75,8 +73,8 @@ func run() error {
 	requirementsFile := flag.String("requirements_file", "", "Requirements File")
 	flag.Parse()
 
-	if err := godotenv.Load(".env"); err != nil {
-		fmt.Println("Failed to load environ")
+	if err := wss.LoadEnvironment(".env"); err != nil {
+		return err
 	}
 
 	if err := validateArguments(*mode, *packageName, *projectName, *scanSource, *application, *packageType, *requirementsFile); err != nil {
