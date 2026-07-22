@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
-	"os/exec"
 	"time"
+	"wss/inventory"
 	"wss/worker"
 	"wss/wss"
 
@@ -72,49 +70,18 @@ func GetPackageReport(packageName string, projectName string, withConf string, d
 }
 
 func GetInventoryReport(projectName, packageType string) (bool, error) {
-
-	var status bool = true
-	var err error = nil
-	var shellScript string = ""
+	urlSource := inventory.ReferenceURL
 	switch packageType {
-	case "python":
-		shellScript = "inventory2csv.sh"
-	case "maven":
-		shellScript = "inventory2csv_pom.sh"
-	case "npm":
-		shellScript = "inventory2csv.sh"
-	case "gradle":
-		shellScript = "inventory2csv_pom.sh"
-	case "wget":
-		shellScript = "inventory2csv.sh"
-	default:
-		shellScript = "inventory2csv.sh"
+	case "maven", "gradle":
+		urlSource = inventory.POMURL
 	}
 
 	source := fmt.Sprintf("%s/%s/alert.json", os.Getenv("report_tmp"), projectName)
 	output := fmt.Sprintf("%s/%s/inventory.csv", os.Getenv("report_tmp"), projectName)
-
-	// 檢查源文件是否存在
-	if _, err := os.Stat(source); err != nil {
-		return false, fmt.Errorf("無法讀取源文件 %s: %w", source, err)
+	if err := inventory.ConvertFile(source, output, urlSource); err != nil {
+		return false, err
 	}
-
-	scriptPath := fmt.Sprintf("./utils/%s", shellScript)
-	cmd := exec.Command(scriptPath, source, output)
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-	err = cmd.Run()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			slog.Error("inventory conversion failed", "exit_code", exitErr.ExitCode(), "stdout", stdoutBuf.String(), "stderr", stderrBuf.String())
-			status = false
-		} else {
-			slog.Error("inventory conversion could not start", "error", err, "stdout", stdoutBuf.String(), "stderr", stderrBuf.String())
-			status = false
-		}
-	}
-	return status, err
+	return true, nil
 }
 
 // GetProjectAlert 取得專案的風險警報，格式化並保存到 alert.json 檔案中。
