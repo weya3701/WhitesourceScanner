@@ -28,6 +28,10 @@
 
         ~ WhitesourceScanner --mode=cmd --project_name=<project_name> --package_name=<package_name>
 
+* cmd 模式也可以用 `scan_source` 直接指定要掃描的目錄。指定後不使用 `project_name`、`package_name`，也不會在 `package_tmp` 下組合路徑；Mend 專案名稱與報告目錄名稱會使用來源目錄的名稱。
+
+        ~ WhitesourceScanner --mode=cmd --scan_source=/path/to/source
+
 * 執行完成在./report/<掃描套件目錄名稱>中可以找到risk.pdf檔案
 
 * 執行Docker image tar檔案掃描
