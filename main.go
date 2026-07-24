@@ -169,6 +169,28 @@ func run() error {
 		}
 	}
 
+	if *mode == "cmd" || *mode == "reqfile" {
+		archiveSource := filepath.Join(os.Getenv("package_tmp"), effectivePackageName)
+		if directScanSource {
+			archiveSource = effectivePackageName
+		}
+		tasks = append(tasks, BatchTask{
+			Name: "零風險掃描來源封裝",
+			Func: func() (bool, error) {
+				archiveName, err := wss.ArchiveReportIfNoVulnerabilities(
+					os.Getenv("report_tmp"),
+					effectiveProjectName,
+					archiveSource,
+					".",
+				)
+				if err == nil && archiveName != "" {
+					fmt.Printf("報告已封裝為 %s\n", archiveName)
+				}
+				return err == nil, err
+			},
+		})
+	}
+
 	runner := NewBatchRunner(tasks)
 	if success, err := runner.Run(); !success {
 		return err
