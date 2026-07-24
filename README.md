@@ -36,6 +36,8 @@
 
 * 執行完成在./report/<掃描套件目錄名稱>中可以找到risk.pdf檔案
 
+* 掃描完成後會檢查 `./report/<專案名稱>/alert.json`。若任一套件含有風險弱點則不進行封裝；若所有套件的弱點數皆為 0，會封裝本次掃描的來源套件，以「專案名稱 + 日期時間」計算 SHA-256 雜湊，並在目前工作目錄產生 `<雜湊值>.tar.gz`。
+
 * 執行Docker image tar檔案掃描
 
         ~ WhitesourceScan --mode=image --project_name=<project_name> --package_name=<package_name> --tar_file=<tar_file_path>
