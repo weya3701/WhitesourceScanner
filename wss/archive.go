@@ -3,13 +3,13 @@ package wss
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
+
+	"wss/fingerprint"
 )
 
 type alertInventory struct {
@@ -22,8 +22,8 @@ type alertLibrary struct {
 
 // ArchiveReportIfNoVulnerabilities packages the scanned source directory when
 // alert.json contains no vulnerabilities. The archive is written to workDir as
-// a SHA-256 hash derived from the project name and current timestamp. An empty
-// returned filename means vulnerabilities were found and no archive was made.
+// a filename derived from the source directory fingerprint. An empty returned
+// filename means vulnerabilities were found and no archive was made.
 func ArchiveReportIfNoVulnerabilities(reportRoot, projectName, sourceDir, workDir string) (string, error) {
 	reportDir := filepath.Join(reportRoot, projectName)
 	alertFile := filepath.Join(reportDir, "alert.json")
@@ -57,7 +57,11 @@ func ArchiveReportIfNoVulnerabilities(reportRoot, projectName, sourceDir, workDi
 	if err := os.MkdirAll(workDir, 0755); err != nil {
 		return "", fmt.Errorf("create archive directory %s: %w", workDir, err)
 	}
-	archiveName := reportArchiveName(projectName, time.Now())
+	sourceFingerprint, err := fingerprint.Hash(sourceDir, fingerprint.Options{})
+	if err != nil {
+		return "", fmt.Errorf("fingerprint scan source %s: %w", sourceDir, err)
+	}
+	archiveName := reportArchiveName(sourceFingerprint)
 	archivePath := filepath.Join(workDir, archiveName)
 	tempFile, err := os.CreateTemp(workDir, "."+projectName+"-*.tar.gz")
 	if err != nil {
@@ -80,10 +84,8 @@ func ArchiveReportIfNoVulnerabilities(reportRoot, projectName, sourceDir, workDi
 	return archiveName, nil
 }
 
-func reportArchiveName(projectName string, createdAt time.Time) string {
-	timestamp := createdAt.Format("20060102150405.000000000")
-	hash := sha256.Sum256([]byte(projectName + timestamp))
-	return fmt.Sprintf("%x.tar.gz", hash)
+func reportArchiveName(sourceFingerprint string) string {
+	return sourceFingerprint + ".tar.gz"
 }
 
 func writeTarGz(output io.Writer, sourceDir, archiveRoot string) error {

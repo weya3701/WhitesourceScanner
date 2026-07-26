@@ -3,12 +3,11 @@ package wss
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/sha256"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
+
+	"wss/fingerprint"
 )
 
 func TestArchiveReportIfNoVulnerabilities(t *testing.T) {
@@ -36,6 +35,13 @@ func TestArchiveReportIfNoVulnerabilities(t *testing.T) {
 	}
 	if archiveName == "" {
 		t.Fatal("ArchiveReportIfNoVulnerabilities() filename is empty")
+	}
+	sourceFingerprint, err := fingerprint.Hash(sourceDir, fingerprint.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := sourceFingerprint + ".tar.gz"; archiveName != want {
+		t.Fatalf("ArchiveReportIfNoVulnerabilities() filename = %q, want %q", archiveName, want)
 	}
 
 	file, err := os.Open(filepath.Join(tempDir, archiveName))
@@ -123,12 +129,45 @@ func TestArchiveReportRejectsMissingLibraries(t *testing.T) {
 	}
 }
 
-func TestReportArchiveNameUsesProjectNameAndTimestampHash(t *testing.T) {
-	createdAt := time.Date(2026, time.July, 23, 14, 5, 6, 123456789, time.FixedZone("CST", 8*60*60))
-	input := "safe-project" + "20260723140506.123456789"
-	want := fmt.Sprintf("%x.tar.gz", sha256.Sum256([]byte(input)))
-
-	if got := reportArchiveName("safe-project", createdAt); got != want {
+func TestReportArchiveNameUsesSourceFingerprint(t *testing.T) {
+	const sourceFingerprint = "4d5e6f"
+	const want = sourceFingerprint + ".tar.gz"
+	if got := reportArchiveName(sourceFingerprint); got != want {
 		t.Fatalf("reportArchiveName() = %q, want %q", got, want)
+	}
+}
+
+func TestArchiveNameChangesWithSourceContent(t *testing.T) {
+	tempDir := t.TempDir()
+	reportRoot := filepath.Join(tempDir, "report")
+	projectDir := filepath.Join(reportRoot, "safe-project")
+	sourceDir := filepath.Join(tempDir, "source")
+	if err := os.MkdirAll(projectDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, "alert.json"), []byte(`{"libraries":[]}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	sourceFile := filepath.Join(sourceDir, "package.txt")
+	if err := os.WriteFile(sourceFile, []byte("first"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := ArchiveReportIfNoVulnerabilities(reportRoot, "safe-project", sourceDir, tempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sourceFile, []byte("second"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	second, err := ArchiveReportIfNoVulnerabilities(reportRoot, "safe-project", sourceDir, tempDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatalf("archive filename did not change after source content changed: %q", first)
 	}
 }
