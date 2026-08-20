@@ -32,26 +32,25 @@ func GetJsonContentType() (string, string) {
 }
 
 // DoWhitesourceScan 執行 WhiteSource 掃描流程。
-// 它會解析 WhiteSource 環境配置，設定專案名稱和產品名稱，然後執行掃描。
+// 它會解析 WhiteSource 環境配置，設定專案名稱，然後執行掃描。
 //
 // 參數:
 //   - packagePath: 要掃描的套件路徑。
-//   - productName: 產品名稱。
-//   - withConf: 是否使用配置檔案 ("yes" 表示使用)。
-func DoWhitesourceScan(packagePath string, productName string, withConf string, directScanSource bool) error {
+//   - projectName: 專案名稱。
+//   - configFile: Unified Agent 配置檔案路徑；空字串表示不套用配置檔案。
+func DoWhitesourceScan(packagePath string, projectName string, configFile string, directScanSource bool) error {
 	var wssEnv WhiteSourceEnv
-	projectName := &productName
 
+	Verbosef("載入掃描設定：%s", os.Getenv("settings_file"))
 	if err := wssEnv.ParserEnv(os.Getenv("settings_file")); err != nil {
 		return err
 	}
-	wssEnv.SetProductName(&productName)
-	wssEnv.SetProjectName(projectName)
+	wssEnv.SetProjectName(&projectName)
 
 	if err := wssEnv.SetEnv(); err != nil {
 		return err
 	}
-	return wssEnv.DoScan(packagePath, &productName, withConf, directScanSource)
+	return wssEnv.DoScan(packagePath, &projectName, configFile, directScanSource)
 }
 
 // GetFilePath 根據提供的路徑、專案名稱和檔案名稱構建完整的檔案路徑。
@@ -105,18 +104,20 @@ func DoUploadRequest(projectName string) (string, error) {
 		projectName,
 		os.Getenv("request_file"),
 	)
+	Verbosef("讀取掃描請求檔：%s", requestFile)
 	updateRequestorigin, err := NewUpdateRequestFromFile(requestFile)
 	if err != nil {
 		return "Failed to load upload request", err
 	}
 
-	resp, err := updateRequestorigin.SendUploadRequest(
-		os.Getenv("whitesource_agent"),
-	)
+	uploadURL := os.Getenv("whitesource_agent")
+	Verbosef("送出掃描結果：endpoint=%s project=%s", uploadURL, projectName)
+	resp, err := updateRequestorigin.SendUploadRequest(uploadURL)
 	if err != nil {
 		return "Failed to send upload request", err
 	}
 	defer resp.Body.Close()
+	Verbosef("掃描結果上傳回應：status_code=%d status=%s", resp.StatusCode, resp.Status)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return "Upload request failed", fmt.Errorf("upload API returned %s", resp.Status)
 	}
@@ -124,6 +125,7 @@ func DoUploadRequest(projectName string) (string, error) {
 	if err != nil {
 		return "Failed to parse response body", err
 	}
+	Verbosef("掃描結果上傳回應大小：%d bytes", len(body))
 	err = json.Unmarshal(body, &uploadResponseStatus)
 	if err != nil {
 		return "Failed to parse response body", err
@@ -136,6 +138,7 @@ func DoUploadRequest(projectName string) (string, error) {
 	if !uploadResponseStatus.ToFile(responseStatusFile) {
 		return "Failed to write response status", fmt.Errorf("write response status file %s", responseStatusFile)
 	}
+	Verbosef("上傳狀態已儲存：path=%s mend_status=%d message=%s", responseStatusFile, uploadResponseStatus.Status, uploadResponseStatus.Message)
 	datas := []byte(uploadResponseStatus.Data)
 	err = json.Unmarshal(datas, &uploadResponseData)
 	if err != nil {
@@ -149,6 +152,7 @@ func DoUploadRequest(projectName string) (string, error) {
 	if !uploadResponseData.ToFile(responseDataFile) {
 		return "Failed to write response data", fmt.Errorf("write response data file %s", responseDataFile)
 	}
+	Verbosef("上傳資料已儲存：path=%s created_projects=%d updated_projects=%d", responseDataFile, len(uploadResponseData.CreatedProjects), len(uploadResponseData.UpdatedProjects))
 
 	return msg, err
 }
@@ -191,6 +195,7 @@ func GenerateProjectReportAsync(projectName string) (error, string) {
 	if processStatusResponse.AsyncProcessStatus.Uuid == "" {
 		return fmt.Errorf("report response did not include an async process UUID"), ""
 	}
+	Verbosef("專案報告產生請求已接受：project=%s process_id=%s", projectName, processStatusResponse.AsyncProcessStatus.Uuid)
 	return nil, processStatusResponse.AsyncProcessStatus.Uuid
 }
 
@@ -210,6 +215,8 @@ func AskProcessStatus(jsonData []byte) (error, []byte) {
 
 func askProcessStatus(ctx context.Context, jsonData []byte) (error, []byte) {
 	var rsp []byte = nil
+	requestType := getAPIRequestType(jsonData)
+	Verbosef("呼叫 Mend API：request_type=%s endpoint=%s", requestType, os.Getenv("whitesource_api"))
 	req, err := http.NewRequestWithContext(ctx,
 		"POST",
 		os.Getenv("whitesource_api"),
@@ -231,10 +238,21 @@ func askProcessStatus(ctx context.Context, jsonData []byte) (error, []byte) {
 	if err != nil {
 		return fmt.Errorf("read API response: %w", err), rsp
 	}
+	Verbosef("Mend API 回應：request_type=%s status_code=%d status=%s bytes=%d", requestType, resp.StatusCode, resp.Status, len(body))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("API returned %s: %s", resp.Status, strings.TrimSpace(string(body))), body
 	}
 	return nil, body
+}
+
+func getAPIRequestType(jsonData []byte) string {
+	var request struct {
+		RequestType string `json:"requestType"`
+	}
+	if err := json.Unmarshal(jsonData, &request); err != nil || request.RequestType == "" {
+		return "unknown"
+	}
+	return request.RequestType
 }
 
 // GetProcessStatus 輪詢異步處理狀態，直到狀態變為 "SUCCESS"。
@@ -249,6 +267,8 @@ func askProcessStatus(ctx context.Context, jsonData []byte) (error, []byte) {
 func GetProcessStatus(uuid string, projectName string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), pollTimeout)
 	defer cancel()
+	startedAt := time.Now()
+	attempt := 0
 	var updateRequestOrigin UpdateRequestOriginal
 	var uploadResponseData UploadResponseData
 	var asyncProcessStatusRequest AsyncProcessStatusRequest
@@ -262,6 +282,7 @@ func GetProcessStatus(uuid string, projectName string) (string, error) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
+		attempt++
 		asyncProcessStatusRequest.Uuid = uuid
 		asyncProcessStatusRequest.OrgToken = os.Getenv("WS_APIKEY")
 		jsonData, err := asyncProcessStatusRequest.GetJsonData()
@@ -277,6 +298,10 @@ func GetProcessStatus(uuid string, projectName string) (string, error) {
 		}
 
 		status := strings.ToUpper(asyncProcessResponse.AsyncProcessStatus.Status)
+		if status == "" {
+			status = "UNKNOWN"
+		}
+		Verbosef("報告產生狀態：process_id=%s attempt=%d status=%s elapsed=%s", uuid, attempt, status, time.Since(startedAt).Round(time.Millisecond))
 		switch status {
 		case "SUCCESS":
 			return status, nil
@@ -336,6 +361,7 @@ func GetProjectRiskAlert(destination string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	Verbosef("專案警報取得完成：project=%s bytes=%d", destination, len(body))
 
 	return string(body), nil
 }
@@ -385,6 +411,7 @@ func GetProjectRiskReport(destination string) error {
 	if err != nil {
 		return fmt.Errorf("write project risk report %s: %w", dPath, err)
 	}
+	Verbosef("專案風險報告已儲存：path=%s bytes=%d", dPath, len(body))
 	return nil
 }
 

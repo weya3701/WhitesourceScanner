@@ -36,25 +36,34 @@ func initialPackageDefintion(packageType string) worker.Worker {
 // SyncDefintionPackages 同步定義檔中的套件。
 // 它會根據 packageType 選擇合適的 worker 進行套件同步。
 func SyncDefinitionPackages(packageType string, projectName string, requirementsFile string) error {
+	wss.Verbosef("同步套件定義：type=%s project=%s file=%s", packageType, projectName, requirementsFile)
 	var wk worker.WorkerHandler = worker.NewRepositoryWorker(initialPackageDefintion(packageType))
-	return wk.SyncPackagesFromDefintionFile(projectName, requirementsFile)
+	if err := wk.SyncPackagesFromDefintionFile(projectName, requirementsFile); err != nil {
+		return err
+	}
+	wss.Verbosef("套件定義同步完成：project=%s", projectName)
+	return nil
 
 }
 
 // GetPackageReport 執行 WhiteSource 掃描，上傳請求，生成專案報告並獲取處理狀態，
 // 最後取得專案風險報告。
-func GetPackageReport(packageName string, projectName string, withConf string, directScanSource bool) (bool, error) {
-	if err := wss.DoWhitesourceScan(packageName, projectName, withConf, directScanSource); err != nil {
+func GetPackageReport(packageName string, projectName string, configFile string, directScanSource bool) (bool, error) {
+	wss.Verbosef("[1/5] 開始掃描來源套件")
+	if err := wss.DoWhitesourceScan(packageName, projectName, configFile, directScanSource); err != nil {
 		return false, err
 	}
+	wss.Verbosef("[2/5] 上傳掃描結果")
 	if _, err := wss.DoUploadRequest(projectName); err != nil {
 		return false, err
 	}
 
+	wss.Verbosef("[3/5] 要求 Mend 產生專案報告")
 	err, processID := wss.GenerateProjectReportAsync(projectName)
 	if err != nil {
 		return false, err
 	}
+	wss.Verbosef("[4/5] 等待專案報告完成：process_id=%s", processID)
 	if _, err := wss.GetProcessStatus(processID, projectName); err != nil {
 		return false, err
 	}
@@ -63,9 +72,11 @@ func GetPackageReport(packageName string, projectName string, withConf string, d
 	if err := os.MkdirAll(reportPath, 0755); err != nil {
 		return false, fmt.Errorf("create report directory: %w", err)
 	}
+	wss.Verbosef("[5/5] 下載專案風險報告")
 	if err := wss.GetProjectRiskReport(projectName); err != nil {
 		return false, err
 	}
+	wss.Verbosef("套件掃描與報告取得完成：project=%s", projectName)
 	return true, nil
 }
 
@@ -78,9 +89,11 @@ func GetInventoryReport(projectName, packageType string) (bool, error) {
 
 	source := fmt.Sprintf("%s/%s/alert.json", os.Getenv("report_tmp"), projectName)
 	output := fmt.Sprintf("%s/%s/inventory.csv", os.Getenv("report_tmp"), projectName)
+	wss.Verbosef("轉換庫存報告：source=%s output=%s url_source=%s", source, output, urlSource)
 	if err := inventory.ConvertFile(source, output, urlSource); err != nil {
 		return false, err
 	}
+	wss.Verbosef("庫存報告已儲存：%s", output)
 	return true, nil
 }
 
@@ -88,6 +101,7 @@ func GetInventoryReport(projectName, packageType string) (bool, error) {
 func GetProjectAlert(projectName string) (bool, error) {
 	var status bool = true
 	var err error = nil
+	wss.Verbosef("取得專案警報：project=%s", projectName)
 	rsp, err := wss.GetProjectRiskAlert(projectName)
 	if err != nil {
 		return false, err
@@ -107,6 +121,7 @@ func GetProjectAlert(projectName string) (bool, error) {
 		status = false
 		return status, err
 	}
+	wss.Verbosef("專案警報已儲存：path=%s bytes=%d", reportFile, len(rsp))
 
 	return status, err
 }

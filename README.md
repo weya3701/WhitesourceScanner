@@ -20,7 +20,7 @@
 
 * 透過 `.env` 設定執行路徑、Mend API URL、暫存目錄與外部工具命令。程式啟動時會驗證目前模式所需的設定，缺少設定時會以非零狀態結束。
 
-* 若 `.env` 不存在，程式會使用內建預設值。若 `config/conf.yaml` 不存在，Mend 憑證會改讀取 `MEND_API_KEY`、`MEND_USER_KEY`、`MEND_PRODUCT_TOKEN` 環境變數；其他項目使用內建預設值。檔案存在時仍優先使用檔案內容。
+* 若 `.env` 不存在，程式會使用內建預設值。若 `config/conf.yaml` 不存在，Mend 設定會改讀取 `MEND_API_KEY`、`MEND_USER_KEY`、`MEND_PRODUCT_NAME`、`MEND_PRODUCT_TOKEN` 環境變數；其他項目使用內建預設值。檔案存在時仍優先使用檔案內容。
 
 ## 執行
 
@@ -34,9 +34,19 @@
 
         ~ WhitesourceScanner --mode=cmd --scan_source=/path/to/source
 
+* 使用 Unified Agent 設定檔時，以 `--conf=<檔名>` 指定設定檔路徑。
+
+        ~ WhitesourceScanner --mode=cmd --scan_source=/path/to/source --conf=./config/wss-unified-agent.config
+
 * 執行完成在./report/<掃描套件目錄名稱>中可以找到risk.pdf檔案
 
-* 掃描完成後會檢查 `./report/<專案名稱>/alert.json`。若任一套件含有風險弱點則不進行封裝；若所有套件的弱點數皆為 0，會封裝本次掃描的來源套件，以來源內容的 fingerprint 作為檔名，並在目前工作目錄產生 `<fingerprint>.tar.gz`。
+* 使用 `--check_compliance` 時，掃描完成後會檢查 `./report/<專案名稱>/alert.json`，任一套件含有風險弱點時會回傳失敗狀態。
+
+* 使用 `--archive_source` 時，會封裝本次掃描的來源套件，以來源內容的 fingerprint 作為檔名，並在目前工作目錄產生 `<fingerprint>.tar.gz`。兩個參數可分別啟用；同時啟用時，只有合規檢查通過才會執行封裝。
+
+* 使用 `--verbose` 時，會顯示完整掃描輸出、掃描結果上傳狀態、報告產生 UUID 與輪詢進度，以及警報、風險報告和庫存報告的儲存狀況。程式新增的診斷訊息不會主動輸出 API key 或 token。
+
+        ~ WhitesourceScanner --mode=cmd --scan_source=/path/to/source --verbose
 
 * 執行Docker image tar檔案掃描
 
