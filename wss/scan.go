@@ -47,13 +47,17 @@ func (config *WhiteSourceEnv) ParserEnv(fpath string) error {
 			*config = defaultWhiteSourceEnv
 			config.ApiKey = os.Getenv("MEND_API_KEY")
 			config.UserKey = os.Getenv("MEND_USER_KEY")
+			config.ProductName = os.Getenv("MEND_PRODUCT_NAME")
 			config.ProductToken = os.Getenv("MEND_PRODUCT_TOKEN")
-			missing := make([]string, 0, 3)
+			missing := make([]string, 0, 4)
 			if config.ApiKey == "" {
 				missing = append(missing, "MEND_API_KEY")
 			}
 			if config.UserKey == "" {
 				missing = append(missing, "MEND_USER_KEY")
+			}
+			if config.ProductName == "" {
+				missing = append(missing, "MEND_PRODUCT_NAME")
 			}
 			if config.ProductToken == "" {
 				missing = append(missing, "MEND_PRODUCT_TOKEN")
@@ -165,18 +169,16 @@ func initialUnifiedAgent(fpath, filename string) error {
 		if err := os.MkdirAll(fpath, 0755); err != nil { // 0755: 讀寫執行權限，可根據需要調整
 			return fmt.Errorf("無法建立目錄 %s: %w", fpath, err)
 		}
-		fmt.Printf("目錄 %s 已建立\n", fpath)
+		Verbosef("已建立 Unified Agent 目錄：%s", fpath)
 	} else if err != nil {
 		return fmt.Errorf("檢查目錄 %s 時發生錯誤: %w", fpath, err)
 	} else {
-		fmt.Printf("目錄 %s 已存在\n", fpath)
-
-		fmt.Printf("執行指定命令... (檔案為 %s)\n", agentfilePath) //  代表指定命令，可以替換為其他命令
+		Verbosef("Unified Agent 目錄已存在：%s", fpath)
 	}
 
-	fmt.Println("agent file: ", agentfilePath)
+	Verbosef("Unified Agent 檔案：%s", agentfilePath)
 	if _, err := os.Stat(agentfilePath); os.IsNotExist(err) {
-		fmt.Printf("檔案 %s 不存在，您可以建立它\n", agentfilePath)
+		Verbosef("Unified Agent 不存在，開始下載：%s", agentfilePath)
 		initAgentErr := getUnifiedAgent(
 			filename,
 			os.Getenv("wget"),
@@ -192,7 +194,7 @@ func initialUnifiedAgent(fpath, filename string) error {
 	} else if err != nil {
 		return fmt.Errorf("檢查檔案 %s 時發生錯誤: %w", agentfilePath, err)
 	} else {
-		fmt.Printf("檔案 %s 已存在\n", agentfilePath)
+		Verbosef("Unified Agent 已存在：%s", agentfilePath)
 	}
 	return err
 }
@@ -214,12 +216,14 @@ func getUnifiedAgent(filename string, prefix string, cmds []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, prefix, cmds...)
-	fmt.Println("get unifed agent: ", cmd)
+	Verbosef("下載 Unified Agent，命令：%s", cmd.String())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("gradle dependencies failed: %w, output %s", err, string(out))
 	}
-	fmt.Println(string(out))
+	if len(out) > 0 {
+		Verbosef("Unified Agent 下載輸出：\n%s", string(out))
+	}
 
 	err = os.WriteFile(filename, out, 0644) // 0644 是檔案權限，可根據需要調整
 	if err != nil {
@@ -246,14 +250,23 @@ func DoDockerTarFileScan(cli MendCli) error {
 	cmdArgs := []string{"mend", "image", "--tar", dockerTarFile, "-s", scanScope}
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stdout
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("mend image scan failed: %w, output: %s", err, stdout.String())
+	Verbosef("執行映像掃描，命令：%s", cmd.String())
+	if IsVerbose() {
+		writer := getVerboseWriter()
+		cmd.Stdout = writer
+		cmd.Stderr = writer
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("mend image scan failed: %w", err)
+		}
+		return nil
 	}
-	fmt.Println(stdout.String())
+
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("mend image scan failed: %w, output: %s", err, output.String())
+	}
 	return nil
 }
 
@@ -264,13 +277,11 @@ func DoDockerTarFileScan(cli MendCli) error {
 // 參數:
 //   - packagePath: 要掃描的套件路徑。
 //   - projectName: 指向專案名稱字符串的指標，用於獲取掃描互斥鎖。
-//   - withConf: 字符串，指示是否使用配置檔案 ("yes" 表示使用)。
+//   - configFile: Unified Agent 配置檔案路徑；空字串表示不套用配置檔案。
 //
 // 返回:
 //   - error: 如果掃描失敗或檔案操作失敗，返回錯誤；否則返回 nil。
-func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf string, directScanSource bool) error {
-	var err error = nil
-
+func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, configFile string, directScanSource bool) error {
 	// initial unified agent
 	if err := initialUnifiedAgent(os.Getenv("wssAgentPath"), os.Getenv("wssAgentName")); err != nil {
 		return err
@@ -283,23 +294,29 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	if directScanSource {
 		scanPath = packagePath
 	}
+	Verbosef("掃描設定：product=%s project=%s source=%s", w.ProductName, w.ProjectName, scanPath)
 
 	ua := fmt.Sprintf("%s%s", os.Getenv("wssAgentPath"), os.Getenv("wssAgentName"))
-	cmdArgs := []string{"java", "-jar", ua, "-d", scanPath}
-	// cmdArgs := []string{"java", "-jar", "./wss-unified-agent.jar", "-d", scanPath}
-	if withConf == "yes" {
-		cmdArgs = append(cmdArgs, "-c", "./config/wss-unified-agent.config")
-		fmt.Println("command args: ", cmdArgs)
-	}
+	cmdArgs := unifiedAgentCommandArgs(ua, scanPath, configFile)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
-	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
-	if err != nil {
-		return fmt.Errorf("scan failed: %w, output: %s", err, string(out))
+	Verbosef("執行套件掃描，命令：%s", cmd.String())
+	if IsVerbose() {
+		writer := getVerboseWriter()
+		cmd.Stdout = writer
+		cmd.Stderr = writer
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("scan failed: %w", err)
+		}
+	} else {
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("scan failed: %w, output: %s", err, string(out))
+		}
 	}
+	Verbosef("套件掃描完成：project=%s", w.ProjectName)
 
 	if err := CreateDirectory("whitesource", w.ProjectName); err != nil {
 		return err
@@ -308,5 +325,14 @@ func (w WhiteSourceEnv) DoScan(packagePath string, projectName *string, withConf
 	if err := MoveRequestFile("whitesource/update-request.txt", destinationFile); err != nil {
 		return err
 	}
+	Verbosef("掃描請求檔已儲存：%s", destinationFile)
 	return nil
+}
+
+func unifiedAgentCommandArgs(agentFile, scanPath, configFile string) []string {
+	cmdArgs := []string{"java", "-jar", agentFile, "-d", scanPath}
+	if configFile != "" {
+		cmdArgs = append(cmdArgs, "-c", configFile)
+	}
+	return cmdArgs
 }

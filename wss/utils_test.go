@@ -53,6 +53,24 @@ func TestAskProcessStatus(t *testing.T) {
 	}
 }
 
+func TestAskProcessStatusVerboseOutput(t *testing.T) {
+	output := captureVerboseOutput(t)
+	SetVerbose(true)
+	useTestHTTPClient(t, http.StatusOK, `{"asyncProcessStatus":{"status":"SUCCESS"}}`)
+	t.Setenv("whitesource_api", "https://example.test/api")
+
+	err, _ := AskProcessStatus([]byte(`{"requestType":"getAsyncProcessStatus"}`))
+	if err != nil {
+		t.Fatalf("AskProcessStatus() error = %v", err)
+	}
+	got := output.String()
+	for _, want := range []string{"request_type=getAsyncProcessStatus", "status_code=200", "bytes="} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("verbose output = %q, want %q", got, want)
+		}
+	}
+}
+
 func TestGetProcessStatusReturnsFailure(t *testing.T) {
 	dir := t.TempDir()
 	project := "project"

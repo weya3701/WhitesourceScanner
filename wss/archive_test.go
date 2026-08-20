@@ -109,6 +109,65 @@ func TestArchiveReportWithVulnerabilitiesDoesNothing(t *testing.T) {
 	}
 }
 
+func TestCheckReportCompliance(t *testing.T) {
+	tests := []struct {
+		name      string
+		alert     string
+		compliant bool
+	}{
+		{
+			name:      "compliant",
+			alert:     `{"libraries":[{"vulnerabilities":[]}]}`,
+			compliant: true,
+		},
+		{
+			name:      "not compliant",
+			alert:     `{"libraries":[{"vulnerabilities":[{"name":"CVE-1"}]}]}`,
+			compliant: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reportRoot := filepath.Join(t.TempDir(), "report")
+			projectDir := filepath.Join(reportRoot, "project")
+			if err := os.MkdirAll(projectDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(projectDir, "alert.json"), []byte(tt.alert), 0644); err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := CheckReportCompliance(reportRoot, "project")
+			if err != nil {
+				t.Fatalf("CheckReportCompliance() error = %v", err)
+			}
+			if got != tt.compliant {
+				t.Fatalf("CheckReportCompliance() = %v, want %v", got, tt.compliant)
+			}
+		})
+	}
+}
+
+func TestArchiveSourceDoesNotRequireComplianceReport(t *testing.T) {
+	tempDir := t.TempDir()
+	sourceDir := filepath.Join(tempDir, "source")
+	if err := os.MkdirAll(sourceDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceDir, "package.txt"), []byte("source"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	archiveName, err := ArchiveSource(sourceDir, tempDir)
+	if err != nil {
+		t.Fatalf("ArchiveSource() error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tempDir, archiveName)); err != nil {
+		t.Fatalf("archive does not exist: %v", err)
+	}
+}
+
 func TestArchiveReportRejectsMissingLibraries(t *testing.T) {
 	tempDir := t.TempDir()
 	projectDir := filepath.Join(tempDir, "report", "invalid-project")

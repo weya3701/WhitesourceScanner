@@ -20,33 +20,35 @@ type alertLibrary struct {
 	Vulnerabilities []json.RawMessage `json:"vulnerabilities"`
 }
 
-// ArchiveReportIfNoVulnerabilities packages the scanned source directory when
-// alert.json contains no vulnerabilities. The archive is written to workDir as
-// a filename derived from the source directory fingerprint. An empty returned
-// filename means vulnerabilities were found and no archive was made.
-func ArchiveReportIfNoVulnerabilities(reportRoot, projectName, sourceDir, workDir string) (string, error) {
+// CheckReportCompliance reports whether alert.json contains no vulnerabilities.
+func CheckReportCompliance(reportRoot, projectName string) (bool, error) {
 	reportDir := filepath.Join(reportRoot, projectName)
 	alertFile := filepath.Join(reportDir, "alert.json")
 
 	input, err := os.Open(alertFile)
 	if err != nil {
-		return "", fmt.Errorf("open alert report %s: %w", alertFile, err)
+		return false, fmt.Errorf("open alert report %s: %w", alertFile, err)
 	}
 	defer input.Close()
 
 	var inventory alertInventory
 	if err := json.NewDecoder(input).Decode(&inventory); err != nil {
-		return "", fmt.Errorf("decode alert report %s: %w", alertFile, err)
+		return false, fmt.Errorf("decode alert report %s: %w", alertFile, err)
 	}
 	if inventory.Libraries == nil {
-		return "", fmt.Errorf("alert report %s does not contain libraries", alertFile)
+		return false, fmt.Errorf("alert report %s does not contain libraries", alertFile)
 	}
 	for _, library := range *inventory.Libraries {
 		if len(library.Vulnerabilities) > 0 {
-			return "", nil
+			return false, nil
 		}
 	}
+	return true, nil
+}
 
+// ArchiveSource packages sourceDir into workDir. The archive filename is
+// derived from the source directory fingerprint.
+func ArchiveSource(sourceDir, workDir string) (string, error) {
 	sourceInfo, err := os.Stat(sourceDir)
 	if err != nil {
 		return "", fmt.Errorf("inspect scan source %s: %w", sourceDir, err)
@@ -63,7 +65,7 @@ func ArchiveReportIfNoVulnerabilities(reportRoot, projectName, sourceDir, workDi
 	}
 	archiveName := reportArchiveName(sourceFingerprint)
 	archivePath := filepath.Join(workDir, archiveName)
-	tempFile, err := os.CreateTemp(workDir, "."+projectName+"-*.tar.gz")
+	tempFile, err := os.CreateTemp(workDir, ".source-*.tar.gz")
 	if err != nil {
 		return "", fmt.Errorf("create temporary report archive: %w", err)
 	}
@@ -82,6 +84,17 @@ func ArchiveReportIfNoVulnerabilities(reportRoot, projectName, sourceDir, workDi
 		return "", fmt.Errorf("save report archive %s: %w", archivePath, err)
 	}
 	return archiveName, nil
+}
+
+// ArchiveReportIfNoVulnerabilities packages the scanned source directory when
+// alert.json contains no vulnerabilities. It keeps the original combined
+// behavior for callers that still need it.
+func ArchiveReportIfNoVulnerabilities(reportRoot, projectName, sourceDir, workDir string) (string, error) {
+	compliant, err := CheckReportCompliance(reportRoot, projectName)
+	if err != nil || !compliant {
+		return "", err
+	}
+	return ArchiveSource(sourceDir, workDir)
 }
 
 func reportArchiveName(sourceFingerprint string) string {

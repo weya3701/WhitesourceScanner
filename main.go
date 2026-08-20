@@ -63,7 +63,7 @@ func run() error {
 	packageName := flag.String("package_name", "", "Package Name")
 	projectName := flag.String("project_name", "", "Project Name")
 	scanSource := flag.String("scan_source", "", "Scan source path (cmd mode only)")
-	withConf := flag.String("with_conf", "", "With Config")
+	conf := flag.String("conf", "", "Unified Agent config file")
 	exportFile := flag.String("export_file", "", "Export File")
 	application := flag.String("application", "", "Application")
 	tarFile := flag.String("tar_file", "", "Tar File")
@@ -71,7 +71,11 @@ func run() error {
 	imageTag := flag.String("image_tag", "", "Image Tag")
 	packageType := flag.String("package_type", "", "Package Type")
 	requirementsFile := flag.String("requirements_file", "", "Requirements File")
+	checkCompliance := flag.Bool("check_compliance", false, "Check whether the scan report is compliant")
+	archiveSource := flag.Bool("archive_source", false, "Archive the scanned source package")
+	verbose := flag.Bool("verbose", false, "Show detailed scan and report progress")
 	flag.Parse()
+	wss.SetVerbose(*verbose)
 
 	if err := wss.LoadEnvironment(".env"); err != nil {
 		return err
@@ -110,7 +114,7 @@ func run() error {
 			{
 				Name: "取得套件報告",
 				Func: func() (bool, error) {
-					return handler.GetPackageReport(effectivePackageName, effectiveProjectName, *withConf, false)
+					return handler.GetPackageReport(effectivePackageName, effectiveProjectName, *conf, false)
 				},
 			},
 			{
@@ -132,7 +136,7 @@ func run() error {
 			{
 				Name: "取得套件報告",
 				Func: func() (bool, error) {
-					return handler.GetPackageReport(effectivePackageName, effectiveProjectName, *withConf, directScanSource)
+					return handler.GetPackageReport(effectivePackageName, effectiveProjectName, *conf, directScanSource)
 				},
 			},
 			{
@@ -169,26 +173,43 @@ func run() error {
 		}
 	}
 
-	if *mode == "cmd" || *mode == "reqfile" {
-		archiveSource := filepath.Join(os.Getenv("package_tmp"), effectivePackageName)
+	if (*checkCompliance || *archiveSource) && (*mode == "cmd" || *mode == "reqfile") {
+		sourceDir := filepath.Join(os.Getenv("package_tmp"), effectivePackageName)
 		if directScanSource {
-			archiveSource = effectivePackageName
+			sourceDir = effectivePackageName
 		}
-		tasks = append(tasks, BatchTask{
-			Name: "零風險掃描來源封裝",
-			Func: func() (bool, error) {
-				archiveName, err := wss.ArchiveReportIfNoVulnerabilities(
-					os.Getenv("report_tmp"),
-					effectiveProjectName,
-					archiveSource,
-					".",
-				)
-				if err == nil && archiveName != "" {
-					fmt.Printf("報告已封裝為 %s\n", archiveName)
-				}
-				return err == nil, err
-			},
-		})
+		if *checkCompliance {
+			tasks = append(tasks, BatchTask{
+				Name: "判斷掃描結果是否合規",
+				Func: func() (bool, error) {
+					compliant, err := wss.CheckReportCompliance(
+						os.Getenv("report_tmp"),
+						effectiveProjectName,
+					)
+					if err != nil {
+						return false, err
+					}
+					if compliant {
+						fmt.Println("掃描結果合規。")
+					} else {
+						fmt.Println("掃描結果不合規。")
+					}
+					return compliant, nil
+				},
+			})
+		}
+		if *archiveSource {
+			tasks = append(tasks, BatchTask{
+				Name: "封裝掃描來源套件",
+				Func: func() (bool, error) {
+					archiveName, err := wss.ArchiveSource(sourceDir, ".")
+					if err == nil {
+						fmt.Printf("來源套件已封裝為 %s\n", archiveName)
+					}
+					return err == nil, err
+				},
+			})
+		}
 	}
 
 	runner := NewBatchRunner(tasks)
