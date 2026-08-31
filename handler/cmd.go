@@ -1,16 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 	"wss/inventory"
 	"wss/worker"
 	"wss/wss"
-
-	"github.com/signintech/pdft"
-	gopdf "github.com/signintech/pdft/minigopdf"
 )
 
 // initialPackageDefintion 根據 packageType 初始化並返回對應的 worker.Worker 實例。
@@ -138,60 +133,4 @@ func InitMendCli(exportFile, application, packageName, projectName, tarFile, ima
 	mendCli.ProjectName = projectName
 
 	return mendCli
-}
-
-// UpdateRiskReport 獲取專案風險警報，並更新指定的 PDF 報告檔案，
-// 主要更新報告中的時間戳為 UTC+8。
-func UpdateRiskReport(projectName string) error {
-
-	var ipdf pdft.PDFt
-
-	rsp, err := wss.GetProjectRiskAlert(projectName)
-	if err != nil {
-		return err
-	}
-	rsp, err = wss.GetPrettyString(rsp)
-	if err != nil {
-		return err
-	}
-
-	var projectScanInfo wss.ProjectScanInfo
-	if err := json.Unmarshal([]byte(rsp), &projectScanInfo); err != nil {
-		return err
-	}
-
-	// FIXME. 變更時間為utf+8 -- Start
-	layout := "2006-01-02 15:04:05"
-	secondsInHour := 60 * 60
-	loc := time.FixedZone("CST", 8*secondsInHour)
-
-	t, err := time.ParseInLocation(layout, projectScanInfo.ProjectVitals.LastUpdatedDate, time.UTC)
-	if err != nil {
-		return err
-	}
-
-	tInUTC8 := t.In(loc)
-	timeStr := tInUTC8.Format(layout)
-
-	// FIXME. 變更時間為utf+8 -- End
-
-	timestamp := "lastUpload:" + timeStr + " GenReport:" + time.Now().Format("2006-01-02 15:04:05")
-
-	reportFile := fmt.Sprintf(
-		"%s/%s/%s",
-		os.Getenv("report_tmp"),
-		projectName,
-		os.Getenv("risk_report_file"),
-	)
-	err = ipdf.Open(reportFile)
-	if err != nil {
-		return fmt.Errorf("PDF not found %w", err)
-	}
-
-	ipdf.AddFont("arial", "./ttf/angsa.ttf")
-	ipdf.SetFont("arial", "", 20)
-	ipdf.Insert(timestamp, 1, 302, -5, 100, 100, gopdf.Center|gopdf.Bottom)
-	ipdf.Save(reportFile)
-
-	return nil
 }
