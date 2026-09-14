@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"time"
 )
 
 // NewUpdateRequestFromFile 從指定檔案路徑讀取並解析 UpdateRequestOriginal 結構。
@@ -96,8 +95,7 @@ func (u UpdateRequestOriginal) SendUploadRequest(wssurl string) (resp *http.Resp
 	}
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
 	req.Header.Add("Accept-Charset", "utf-8")
-	client := &http.Client{Timeout: 30 * time.Second}
-	res, err := client.Do(req)
+	res, err := apiHTTPClient.Do(req)
 	return res, err
 }
 

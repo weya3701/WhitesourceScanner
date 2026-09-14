@@ -99,6 +99,9 @@ func run() error {
 	if err := config.Validate(*mode, *packageType); err != nil {
 		return err
 	}
+	if err := wss.ConfigureAPIProxy(config.ProxyURL); err != nil {
+		return err
+	}
 
 	var tasks []BatchTask
 	switch *mode {

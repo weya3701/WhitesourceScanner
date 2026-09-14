@@ -30,6 +30,7 @@ var defaultEnvironment = map[string]string{
 	"pip":                  "pip",
 	"wget":                 "wget",
 	"concurrency":          "40",
+	"proxy":                "",
 }
 
 // LoadEnvironment loads the configured environment file. When the file does
@@ -74,6 +75,7 @@ type RuntimeConfig struct {
 	NPMCommand         string
 	GradleCommand      string
 	Concurrency        int
+	ProxyURL           string
 }
 
 func LoadRuntimeConfig() (RuntimeConfig, error) {
@@ -94,6 +96,7 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 		AgentPath: os.Getenv("wssAgentPath"), AgentName: os.Getenv("wssAgentName"), AgentURL: os.Getenv("agentURL"),
 		WgetCommand: os.Getenv("wget"), PipCommand: os.Getenv("pip"), MavenCommand: os.Getenv("maven"),
 		NPMCommand: os.Getenv("npm"), GradleCommand: os.Getenv("gradle"), Concurrency: concurrency,
+		ProxyURL: os.Getenv("proxy"),
 	}, nil
 }
 

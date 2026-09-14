@@ -13,6 +13,18 @@ func TestLoadRuntimeConfigRejectsInvalidConcurrency(t *testing.T) {
 	}
 }
 
+func TestLoadRuntimeConfigReadsProxy(t *testing.T) {
+	t.Setenv("concurrency", "4")
+	t.Setenv("proxy", "http://proxy.example.test:8080")
+	config, err := LoadRuntimeConfig()
+	if err != nil {
+		t.Fatalf("LoadRuntimeConfig() error = %v", err)
+	}
+	if config.ProxyURL != "http://proxy.example.test:8080" {
+		t.Fatalf("ProxyURL = %q", config.ProxyURL)
+	}
+}
+
 func TestRuntimeConfigImageNeedsNoScannerEnvironment(t *testing.T) {
 	if err := (RuntimeConfig{}).Validate("image", ""); err != nil {
 		t.Fatalf("image config validation failed: %v", err)

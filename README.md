@@ -22,6 +22,14 @@
 
 * 若 `.env` 不存在，程式會使用內建預設值。若 `config/conf.yaml` 不存在，Mend 設定會改讀取 `MEND_API_KEY`、`MEND_USER_KEY`、`MEND_PRODUCT_NAME`、`MEND_PRODUCT_TOKEN` 環境變數；其他項目使用內建預設值。檔案存在時仍優先使用檔案內容。
 
+* Mend API 可透過 `.env` 的 `proxy` 設定代理伺服器，支援 `http`、`https`、`socks5` 與 `socks5h` URL，也支援在 URL 內提供帳號密碼。未設定 `proxy` 時，會沿用 Go 標準的 `HTTP_PROXY`、`HTTPS_PROXY` 與 `NO_PROXY` 環境變數。
+
+        proxy=http://proxy.example.com:8080
+
+  若代理需要驗證：
+
+        proxy=http://username:password@proxy.example.com:8080
+
 ## 執行
 
 * 將套件依目錄放置./tmp目錄中
