@@ -71,6 +71,19 @@ func TestAskProcessStatusVerboseOutput(t *testing.T) {
 	}
 }
 
+func TestSendUploadRequestUsesAPIHTTPClient(t *testing.T) {
+	useTestHTTPClient(t, http.StatusNoContent, "")
+
+	response, err := (UpdateRequestOriginal{}).SendUploadRequest("https://example.test/agent")
+	if err != nil {
+		t.Fatalf("SendUploadRequest() error = %v", err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusNoContent)
+	}
+}
+
 func TestGetProcessStatusReturnsFailure(t *testing.T) {
 	dir := t.TempDir()
 	project := "project"
